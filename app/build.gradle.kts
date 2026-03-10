@@ -1,14 +1,16 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.google.services)
+
 }
 
 android {
-    namespace = "com.example.duodating"
+    namespace = "es.uc3m.duodating"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.duodating"
+        applicationId = "es.uc3m.duodating"
         minSdk = 24
         targetSdk = 35
         versionCode = 1
@@ -36,6 +38,9 @@ android {
 }
 
 dependencies {
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.auth)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
