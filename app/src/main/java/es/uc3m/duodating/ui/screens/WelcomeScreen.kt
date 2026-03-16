@@ -7,11 +7,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.layout.ModifierLocalBeyondBoundsLayout
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import es.uc3m.duodating.ui.theme.DuoDatingTheme
+
 
 
 
@@ -39,7 +38,7 @@ fun WelcomeScreen(
                 fontWeight = FontWeight.Bold
                 )
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Text(
                 text = "The double dating app for pairs\n" +
@@ -50,7 +49,7 @@ fun WelcomeScreen(
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(40.dp))
 
             TextButton(
                 onClick = onCreateAccountClick,
@@ -63,6 +62,9 @@ fun WelcomeScreen(
                 Text(text = "Create Account",
                     style = MaterialTheme.typography.labelLarge)
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             TextButton(
                 onClick = onLoginClick,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
