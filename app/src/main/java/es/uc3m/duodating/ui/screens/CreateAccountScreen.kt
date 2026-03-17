@@ -27,7 +27,7 @@ fun CreateAccountScreen(onAccountCreated: () -> Unit) {
             .background(Brush.horizontalGradient(colorStops = colorStops)))
     {
         Column(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 40.dp),
+            modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
