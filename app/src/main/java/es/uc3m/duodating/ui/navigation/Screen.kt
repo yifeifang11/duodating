@@ -23,6 +23,7 @@ sealed class Screen(val route: String) {
     object Discover : Screen("discover")
     object Matches : Screen("matches")
     object Chats : Screen("chats")
+    object Conversation : Screen("conversation")
     object ViewProfile : Screen("view_profile")
 }
 

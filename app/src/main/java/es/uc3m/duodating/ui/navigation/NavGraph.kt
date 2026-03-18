@@ -112,7 +112,14 @@ fun NavGraph(navController: NavHostController = rememberNavController()) {
                     }
                 ) 
             }
-            composable(Screen.Chats.route) { ChatsScreen() }
+            composable(Screen.Chats.route) { 
+                ChatsScreen(
+                    onChatClick = { navController.navigate(Screen.Conversation.route) }
+                ) 
+            }
+            composable(Screen.Conversation.route) {
+                ConversationScreen(onBackClick = { navController.popBackStack() })
+            }
             composable(Screen.ViewProfile.route) { ViewProfileScreen() }
         }
     }
