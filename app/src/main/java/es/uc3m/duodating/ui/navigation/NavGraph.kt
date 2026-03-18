@@ -74,7 +74,7 @@ fun NavGraph(navController: NavHostController = rememberNavController()) {
             // Onboarding Flow
             composable(Screen.BuildSelfProfile.route) {
                 BuildSelfProfileScreen(
-                    onNext = { navController.navigate(Screen.ChoosePrompt.route) }
+                    onNext = { navController.navigate(Screen.FindDuoPartner.route) }
                 )
             }
             composable(Screen.ChoosePrompt.route) {
