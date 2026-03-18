@@ -2,6 +2,7 @@ package es.uc3m.duodating.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -56,6 +57,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
             var text by remember {mutableStateOf("")}
             OutlinedTextField(
                 value = text,
+                shape = RoundedCornerShape(26.dp),
                 onValueChange = {text = it},
                 //state = rememberTextFieldState(initialText = "+1(555)000-0000"),
                 label = { Text("Phone Number")},
@@ -72,6 +74,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
 
             OutlinedTextField(
                 value = password,
+                shape = RoundedCornerShape(26.dp),
                 onValueChange = { password = it },
                 label = { Text("Password") },
                 visualTransformation = PasswordVisualTransformation(),
@@ -96,8 +99,10 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Button(onClick = onLoginSuccess) {
-                Text(text = "Login")
+            Button(onClick = onLoginSuccess, modifier = Modifier.fillMaxWidth().height(56.dp)) {
+                Text(text = "Log in",
+                    style = MaterialTheme.typography.bodyLarge
+                )
             }
         }
     }

@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -45,7 +46,11 @@ fun BuildSelfProfileScreen(onNext: () -> Unit) {
             modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp).verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
-        ) {
+
+            ) {
+
+            Spacer(modifier = Modifier.height(32.dp))
+
             Text(text = "Show your best self", style = MaterialTheme.typography.displaySmall.copy(
                     color = MaterialTheme.colorScheme.onPrimary,
                     fontWeight = FontWeight.Bold,
@@ -60,7 +65,9 @@ fun BuildSelfProfileScreen(onNext: () -> Unit) {
                 text = "This is how your profile will look to potential matches",
                 style = MaterialTheme.typography.bodyLarge.copy(
                     color = MaterialTheme.colorScheme.onBackground,
+                    //textAlign = TextAlign.Center
                 ),
+                //modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -95,6 +102,17 @@ fun SelfProfileEditContent(
     ) { uri ->
         onUriChange(uri)
     }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            val selectedUri = remember { mutableStateOf<Uri?>(null) }
+
+            val photoPickerLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.PickVisualMedia()
+            ) { uri ->
+                selectedUri.value = uri
+                // uri is null if user cancelled
+                // store it in a viewmodel or local state
+            }
 
     val menuItemData = listOf(
         "My most irrational fear is...",
@@ -159,6 +177,15 @@ fun SelfProfileEditContent(
             ),
             modifier = Modifier.fillMaxWidth()
         )
+            //Choose a prompt
+            Text(
+                text = "Choose a prompt",
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Left
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -188,6 +215,17 @@ fun SelfProfileEditContent(
                     style = MaterialTheme.typography.bodyMedium.copy(
                         color = MaterialTheme.colorScheme.onPrimary,
                         textAlign = TextAlign.Left
+            val expanded = remember { mutableStateOf(false) }
+            //Placeholder
+            val menuItemData = List(10) { "Option ${it + 1}" }
+            val selectedText = remember { mutableStateOf(menuItemData[0]) }
+
+            Box {
+                OutlinedButton(
+                    onClick = { expanded.value = true },
+                    modifier = Modifier.fillMaxSize().height(56.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -205,6 +243,21 @@ fun SelfProfileEditContent(
                         }
                     )
                 }
+                DropdownMenu(
+                    expanded = expanded.value,
+                    onDismissRequest = { expanded.value = false },
+                    modifier = Modifier.height(56.dp)
+                ) {
+                    menuItemData.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option) },
+                            onClick = {
+                                selectedText.value = option
+                                expanded.value = false
+                            }
+                        )
+                    }
+                }
             }
         }
 
@@ -218,6 +271,28 @@ fun SelfProfileEditContent(
             ),
             modifier = Modifier.fillMaxWidth()
         )
+            var text by remember {mutableStateOf("")}
+
+            Box {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    placeholder = {
+                        Text(
+                            text = "Type your answer here",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                textAlign = TextAlign.Left
+                            )
+                        )},
+                    shape = RoundedCornerShape(26.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.primary
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -244,6 +319,12 @@ fun SelfProfileEditContent(
 
         Button(onClick = onSave, modifier = Modifier.fillMaxWidth()) {
             Text(text = buttonText)
+
+            Button(onClick = onNext, modifier = Modifier.fillMaxSize().height(60.dp)) {
+                Text(text = "Next",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
         }
     }
 }

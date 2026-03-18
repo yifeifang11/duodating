@@ -1,7 +1,7 @@
 package es.uc3m.duodating.ui.navigation
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
@@ -47,7 +47,7 @@ sealed class BottomBarScreen(
     object Chats : BottomBarScreen(
         route = Screen.Chats.route,
         title = "Chats",
-        icon = Icons.Default.Chat
+        icon = Icons.AutoMirrored.Filled.Chat
     )
 
     object Profile : BottomBarScreen(
