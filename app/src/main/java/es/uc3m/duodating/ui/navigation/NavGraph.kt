@@ -99,7 +99,19 @@ fun NavGraph(navController: NavHostController = rememberNavController()) {
 
             // Main App Flow
             composable(Screen.Discover.route) { DiscoverScreen() }
-            composable(Screen.Matches.route) { MatchesScreen() }
+            composable(Screen.Matches.route) { 
+                MatchesScreen(
+                    onProfileClick = {
+                        navController.navigate(Screen.Discover.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                ) 
+            }
             composable(Screen.Chats.route) { ChatsScreen() }
             composable(Screen.ViewProfile.route) { ViewProfileScreen() }
         }

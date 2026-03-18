@@ -39,7 +39,7 @@ sealed class BottomBarScreen(
 
     object Matches : BottomBarScreen(
         route = Screen.Matches.route,
-        title = "Matches",
+        title = "Likes",
         icon = Icons.Default.Favorite
     )
 
