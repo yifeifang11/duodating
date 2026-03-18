@@ -33,7 +33,7 @@ fun WelcomeScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(text = "Duo Dating", style = MaterialTheme.typography.displayMedium.copy(
+            Text(text = "DoubleTake", style = MaterialTheme.typography.displayMedium.copy(
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.Bold
                 )

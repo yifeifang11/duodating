@@ -33,6 +33,7 @@ fun BuildSelfProfileScreen(onNext: () -> Unit) {
         0.0f to MaterialTheme.colorScheme.background,
         0.5f to MaterialTheme.colorScheme.secondary
     )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -44,6 +45,9 @@ fun BuildSelfProfileScreen(onNext: () -> Unit) {
             verticalArrangement = Arrangement.Center,
 
             ) {
+
+            Spacer(modifier = Modifier.height(32.dp))
+
             Text(text = "Show your best self", style = MaterialTheme.typography.displaySmall.copy(
                     color = MaterialTheme.colorScheme.onPrimary,
                     fontWeight = FontWeight.Bold,
@@ -218,8 +222,10 @@ fun BuildSelfProfileScreen(onNext: () -> Unit) {
             Spacer(modifier = Modifier.height(24.dp))
 
 
-            Button(onClick = onNext, modifier = Modifier.fillMaxSize()) {
-                Text(text = "Next")
+            Button(onClick = onNext, modifier = Modifier.fillMaxSize().height(60.dp)) {
+                Text(text = "Next",
+                    style = MaterialTheme.typography.bodyLarge
+                )
             }
         }
     }

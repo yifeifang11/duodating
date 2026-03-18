@@ -2,6 +2,7 @@ package es.uc3m.duodating.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -53,6 +54,7 @@ fun CreateAccountScreen(onAccountCreated: () -> Unit) {
             var text by remember {mutableStateOf("")}
             OutlinedTextField(
                 value = text,
+                shape = RoundedCornerShape(26.dp),
                 onValueChange = {text = it},
                 //state = rememberTextFieldState(initialText = "+1(555)000-0000"),
                 label = { Text("Phone Number")},
@@ -69,6 +71,7 @@ fun CreateAccountScreen(onAccountCreated: () -> Unit) {
 
             OutlinedTextField(
                 value = password,
+                shape = RoundedCornerShape(26.dp),
                 onValueChange = { password = it },
                 label = { Text("Password") },
                 visualTransformation = PasswordVisualTransformation(),
@@ -90,8 +93,10 @@ fun CreateAccountScreen(onAccountCreated: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(133.dp))
 
-            Button(onClick = onAccountCreated) {
-                Text(text = "Create Account")
+            Button(onClick = onAccountCreated, modifier = Modifier.fillMaxWidth().height(56.dp)) {
+                Text(text = "Create Account",
+                    style = MaterialTheme.typography.bodyLarge
+                )
             }
         }
     }
