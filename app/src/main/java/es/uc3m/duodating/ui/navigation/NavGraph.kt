@@ -120,7 +120,7 @@ fun NavGraph(navController: NavHostController = rememberNavController()) {
             composable(Screen.Conversation.route) {
                 ConversationScreen(onBackClick = { navController.popBackStack() })
             }
-            composable(Screen.ViewProfile.route) { ViewProfileScreen() }
+            composable(Screen.ViewProfile.route) { ProfileTabScreen() }
         }
     }
 }

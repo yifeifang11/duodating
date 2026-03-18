@@ -25,13 +25,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
-
 @Composable
 fun BuildSelfProfileScreen(onNext: () -> Unit) {
     val colorStops = arrayOf(
         0.0f to MaterialTheme.colorScheme.background,
         0.5f to MaterialTheme.colorScheme.secondary
     )
+
+    var selectedUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedPrompt by remember { mutableStateOf("My most irrational fear is...") }
+    var promptResponse by remember { mutableStateOf("") }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -41,8 +45,7 @@ fun BuildSelfProfileScreen(onNext: () -> Unit) {
             modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp).verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
-
-            ) {
+        ) {
             Text(text = "Show your best self", style = MaterialTheme.typography.displaySmall.copy(
                     color = MaterialTheme.colorScheme.onPrimary,
                     fontWeight = FontWeight.Bold,
@@ -62,163 +65,185 @@ fun BuildSelfProfileScreen(onNext: () -> Unit) {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            Text(
-                text = "Add a photo",
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    textAlign = TextAlign.Left
-                ),
-                modifier = Modifier.fillMaxWidth()
+            SelfProfileEditContent(
+                selectedUri = selectedUri,
+                onUriChange = { selectedUri = it },
+                selectedPrompt = selectedPrompt,
+                onPromptChange = { selectedPrompt = it },
+                promptResponse = promptResponse,
+                onResponseChange = { promptResponse = it },
+                onSave = onNext
             )
+        }
+    }
+}
 
-            Spacer(modifier = Modifier.height(16.dp))
+@Composable
+fun SelfProfileEditContent(
+    modifier: Modifier = Modifier,
+    selectedUri: Uri?,
+    onUriChange: (Uri?) -> Unit,
+    selectedPrompt: String,
+    onPromptChange: (String) -> Unit,
+    promptResponse: String,
+    onResponseChange: (String) -> Unit,
+    onSave: () -> Unit,
+    buttonText: String = "Next"
+) {
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        onUriChange(uri)
+    }
 
-            val selectedUri = remember { mutableStateOf<Uri?>(null) }
+    val menuItemData = listOf(
+        "My most irrational fear is...",
+        "The way to my heart is...",
+        "I'm actually a pro at...",
+        "I'm looking for someone who...",
+        "My favorite travel story is...",
+        "The best gift I've ever received...",
+        "On a typical Sunday, you can find me..."
+    )
+    var expanded by remember { mutableStateOf(false) }
 
-            val photoPickerLauncher = rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.PickVisualMedia()
-            ) { uri ->
-                selectedUri.value = uri
-            }
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Add a photo",
+            style = MaterialTheme.typography.bodyLarge.copy(
+                color = MaterialTheme.colorScheme.onPrimary,
+                textAlign = TextAlign.Left
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
 
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedButton(
+            onClick = {
+                photoPickerLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(456.dp),
+            shape = RoundedCornerShape(10),
+            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = MaterialTheme.colorScheme.primary
+            )
+        ) {
+            Icon(
+                imageVector = Icons.Default.AddAPhoto,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = if (selectedUri != null) "Photo selected ✓" else "Tap to upload",
+                style = MaterialTheme.typography.bodyLarge
+            )
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Text(
+            text = "Icebreaker",
+            style = MaterialTheme.typography.bodyLarge.copy(
+                color = MaterialTheme.colorScheme.onPrimary,
+                textAlign = TextAlign.Left
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "Choose a prompt",
+            style = MaterialTheme.typography.bodyMedium.copy(
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Left
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Box {
             OutlinedButton(
-                onClick = {
-                    photoPickerLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(456.dp),
-                shape = RoundedCornerShape(10),
-                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary),
+                onClick = { expanded = true },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
                 colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.AddAPhoto,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary),
+            )
+            {
                 Text(
-                    text = if (selectedUri.value != null) "Photo selected ✓" else "Tap to upload",
-                    style = MaterialTheme.typography.bodyLarge
+                    text = selectedPrompt,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        textAlign = TextAlign.Left
+                    ),
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Text(
-                text = "Icebreaker",
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    textAlign = TextAlign.Left
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Choose a prompt",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = MaterialTheme.colorScheme.primary,
-                    textAlign = TextAlign.Left
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            val expanded = remember { mutableStateOf(false) }
-            val menuItemData = listOf(
-                "My most irrational fear is...",
-                "The way to my heart is...",
-                "I'm actually a pro at...",
-                "I'm looking for someone who...",
-                "My favorite travel story is...",
-                "The best gift I've ever received...",
-                "On a typical Sunday, you can find me..."
-            )
-            val selectedText = remember { mutableStateOf(menuItemData[0]) }
-
-            Box {
-                OutlinedButton(
-                    onClick = { expanded.value = true },
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                    ),
-                    border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary),
-                    )
-                {
-                    Text(
-                        text=selectedText.value,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            textAlign = TextAlign.Left
-                        ),
-                        modifier = Modifier.fillMaxWidth()
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                menuItemData.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option) },
+                        onClick = {
+                            onPromptChange(option)
+                            expanded = false
+                        }
                     )
                 }
-                DropdownMenu(
-                    expanded = expanded.value,
-                    onDismissRequest = { expanded.value = false }
-                ) {
-                    menuItemData.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(option) },
-                            onClick = {
-                                selectedText.value = option
-                                expanded.value = false
-                            }
-                        )
-                    }
-                }
             }
+        }
 
-            Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-            Text(
-                text = "Your answer",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = MaterialTheme.colorScheme.primary,
-                    textAlign = TextAlign.Left
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
+        Text(
+            text = "Your answer",
+            style = MaterialTheme.typography.bodyMedium.copy(
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Left
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
 
-            Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-            var text by remember {mutableStateOf("")}
+        OutlinedTextField(
+            value = promptResponse,
+            onValueChange = onResponseChange,
+            placeholder = {
+                Text(
+                    text = "Type your answer here",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        textAlign = TextAlign.Left
+                    )
+                )},
+            shape = RoundedCornerShape(26.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedLabelColor = MaterialTheme.colorScheme.primary
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        )
 
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                placeholder = {
-                    Text(
-                        text = "Type your answer here",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            textAlign = TextAlign.Left
-                        )
-                    )},
-                shape = RoundedCornerShape(26.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedLabelColor = MaterialTheme.colorScheme.primary
-                ),
-                modifier = Modifier.fillMaxWidth(),
-            )
+        Spacer(modifier = Modifier.height(24.dp))
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-
-            Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) {
-                Text(text = "Next")
-            }
+        Button(onClick = onSave, modifier = Modifier.fillMaxWidth()) {
+            Text(text = buttonText)
         }
     }
 }
