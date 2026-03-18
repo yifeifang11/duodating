@@ -7,7 +7,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -58,9 +57,7 @@ fun BuildSelfProfileScreen(onNext: () -> Unit) {
                 text = "This is how your profile will look to potential matches",
                 style = MaterialTheme.typography.bodyLarge.copy(
                     color = MaterialTheme.colorScheme.onBackground,
-                    //textAlign = TextAlign.Center
                 ),
-                //modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -82,8 +79,6 @@ fun BuildSelfProfileScreen(onNext: () -> Unit) {
                 contract = ActivityResultContracts.PickVisualMedia()
             ) { uri ->
                 selectedUri.value = uri
-                // uri is null if user cancelled
-                // store it in a viewmodel or local state
             }
 
             OutlinedButton(
@@ -126,7 +121,6 @@ fun BuildSelfProfileScreen(onNext: () -> Unit) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            //Choose a prompt
             Text(
                 text = "Choose a prompt",
                 style = MaterialTheme.typography.bodyMedium.copy(
@@ -139,14 +133,21 @@ fun BuildSelfProfileScreen(onNext: () -> Unit) {
             Spacer(modifier = Modifier.height(8.dp))
 
             val expanded = remember { mutableStateOf(false) }
-            //Placeholder
-            val menuItemData = List(10) { "Option ${it + 1}" }
+            val menuItemData = listOf(
+                "My most irrational fear is...",
+                "The way to my heart is...",
+                "I'm actually a pro at...",
+                "I'm looking for someone who...",
+                "My favorite travel story is...",
+                "The best gift I've ever received...",
+                "On a typical Sunday, you can find me..."
+            )
             val selectedText = remember { mutableStateOf(menuItemData[0]) }
 
             Box {
                 OutlinedButton(
                     onClick = { expanded.value = true },
-                    modifier = Modifier.fillMaxSize().height(56.dp),
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.onPrimary,
                     ),
@@ -164,8 +165,7 @@ fun BuildSelfProfileScreen(onNext: () -> Unit) {
                 }
                 DropdownMenu(
                     expanded = expanded.value,
-                    onDismissRequest = { expanded.value = false },
-                    modifier = Modifier.height(56.dp)
+                    onDismissRequest = { expanded.value = false }
                 ) {
                     menuItemData.forEach { option ->
                         DropdownMenuItem(
@@ -194,31 +194,29 @@ fun BuildSelfProfileScreen(onNext: () -> Unit) {
 
             var text by remember {mutableStateOf("")}
 
-            Box {
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    placeholder = {
-                        Text(
-                            text = "Type your answer here",
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                textAlign = TextAlign.Left
-                            )
-                        )},
-                    shape = RoundedCornerShape(26.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedLabelColor = MaterialTheme.colorScheme.primary
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                placeholder = {
+                    Text(
+                        text = "Type your answer here",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            textAlign = TextAlign.Left
+                        )
+                    )},
+                shape = RoundedCornerShape(26.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedLabelColor = MaterialTheme.colorScheme.primary
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
 
-            Button(onClick = onNext, modifier = Modifier.fillMaxSize()) {
+            Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) {
                 Text(text = "Next")
             }
         }
