@@ -13,20 +13,28 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.*
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.lifecycle.viewmodel.compose.viewModel
+import es.uc3m.duodating.ui.viewmodels.AuthViewModel
 
 
 @Composable
-fun CreateAccountScreen(onAccountCreated: () -> Unit) {
+fun CreateAccountScreen(
+    onAccountCreated: () -> Unit,
+    viewModel: AuthViewModel = viewModel()
+) {
+    var phone by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+
     val colorStops = arrayOf(
         0.0f to MaterialTheme.colorScheme.background,
         0.5f to MaterialTheme.colorScheme.secondary
     )
+    
     Box(
         modifier = Modifier
-            //.padding(horizontal = 40.dp)
             .fillMaxSize()
-            .background(Brush.horizontalGradient(colorStops = colorStops)))
-    {
+            .background(Brush.horizontalGradient(colorStops = colorStops))
+    ) {
         Column(
             modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
             verticalArrangement = Arrangement.Center,
@@ -44,20 +52,24 @@ fun CreateAccountScreen(onAccountCreated: () -> Unit) {
                 text = "Set up your account to start matching with other pairs and double your dating life",
                 style = MaterialTheme.typography.bodyLarge.copy(
                     color = MaterialTheme.colorScheme.onBackground,
-                    //textAlign = TextAlign.Center
                 ),
-                //modifier = Modifier.fillMaxWidth()
             )
+
+            if (viewModel.errorMessage != null) {
+                Text(
+                    text = viewModel.errorMessage!!,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            var text by remember {mutableStateOf("")}
             OutlinedTextField(
-                value = text,
+                value = phone,
                 shape = RoundedCornerShape(26.dp),
-                onValueChange = {text = it},
-                //state = rememberTextFieldState(initialText = "+1(555)000-0000"),
-                label = { Text("Phone Number")},
+                onValueChange = { phone = it },
+                label = { Text("Phone Number") },
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedLabelColor = MaterialTheme.colorScheme.primary
@@ -66,8 +78,6 @@ fun CreateAccountScreen(onAccountCreated: () -> Unit) {
             )
 
             Spacer(modifier = Modifier.height(16.dp))
-
-            var password by remember { mutableStateOf("") }
 
             OutlinedTextField(
                 value = password,
@@ -83,6 +93,7 @@ fun CreateAccountScreen(onAccountCreated: () -> Unit) {
             )
 
             Spacer(modifier = Modifier.height(20.dp))
+            
             Text(
                 text = "By signing up, you agree to our Terms of Service and Privacy Policy.",
                 style = MaterialTheme.typography.bodyMedium.copy(
@@ -91,14 +102,24 @@ fun CreateAccountScreen(onAccountCreated: () -> Unit) {
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
+            
             Spacer(modifier = Modifier.height(133.dp))
 
-            Button(onClick = onAccountCreated, modifier = Modifier.fillMaxWidth().height(56.dp)) {
-                Text(text = "Create Account",
-                    style = MaterialTheme.typography.bodyLarge
-                )
+            if (viewModel.isLoading) {
+                CircularProgressIndicator()
+            } else {
+                Button(
+                    onClick = {
+                        viewModel.signUp(phone, password, onAccountCreated)
+                    }, 
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    enabled = phone.isNotBlank() && password.length >= 6
+                ) {
+                    Text(text = "Create Account",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
             }
         }
     }
-
 }

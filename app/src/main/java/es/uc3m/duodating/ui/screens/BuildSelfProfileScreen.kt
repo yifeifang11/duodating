@@ -1,6 +1,7 @@
 package es.uc3m.duodating.ui.screens
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,12 +22,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import es.uc3m.duodating.ui.viewmodels.ProfileViewModel
 
 @Composable
-fun BuildSelfProfileScreen(onNext: () -> Unit) {
+fun BuildSelfProfileScreen(
+    onNext: () -> Unit,
+    viewModel: ProfileViewModel = viewModel()
+) {
+    val context = LocalContext.current
     val colorStops = arrayOf(
         0.0f to MaterialTheme.colorScheme.background,
         0.5f to MaterialTheme.colorScheme.secondary
@@ -60,6 +68,14 @@ fun BuildSelfProfileScreen(onNext: () -> Unit) {
                 modifier = Modifier.fillMaxWidth()
             )
 
+            if (viewModel.errorMessage != null) {
+                Text(
+                    text = viewModel.errorMessage!!,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
@@ -72,15 +88,31 @@ fun BuildSelfProfileScreen(onNext: () -> Unit) {
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            SelfProfileEditContent(
-                selectedUri = selectedUri,
-                onUriChange = { selectedUri = it },
-                selectedPrompt = selectedPrompt,
-                onPromptChange = { selectedPrompt = it },
-                promptResponse = promptResponse,
-                onResponseChange = { promptResponse = it },
-                onSave = onNext
-            )
+            if (viewModel.isLoading) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            } else {
+                SelfProfileEditContent(
+                    selectedUri = selectedUri,
+                    onUriChange = { selectedUri = it },
+                    selectedPrompt = selectedPrompt,
+                    onPromptChange = { selectedPrompt = it },
+                    promptResponse = promptResponse,
+                    onResponseChange = { promptResponse = it },
+                    onSave = {
+                        // Assuming basic info is already gathered or we use placeholders for this demo
+                        viewModel.saveProfile(
+                            firstName = "User", // This should come from state or previous screen
+                            lastName = "Name",
+                            dob = "01/01/2000",
+                            phoneNumber = "123456789",
+                            questionChoice = selectedPrompt,
+                            questionAnswer = promptResponse,
+                            imageUri = selectedUri,
+                            onSuccess = onNext
+                        )
+                    }
+                )
+            }
             
             Spacer(modifier = Modifier.height(32.dp))
         }
@@ -256,7 +288,8 @@ fun SelfProfileEditContent(
 
         Button(
             onClick = onSave, 
-            modifier = Modifier.fillMaxWidth().height(60.dp)
+            modifier = Modifier.fillMaxWidth().height(60.dp),
+            enabled = promptResponse.isNotBlank() && selectedUri != null
         ) {
             Text(
                 text = buttonText,
