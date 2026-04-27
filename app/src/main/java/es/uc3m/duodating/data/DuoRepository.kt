@@ -1,63 +1,75 @@
 package es.uc3m.duodating.data
 
+import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.snapshots
 import es.uc3m.duodating.data.models.Duo
+import es.uc3m.duodating.data.models.DuoInvite
+import es.uc3m.duodating.data.models.User
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
-import java.util.UUID
 
 class DuoRepository(
-    private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
-    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
+    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 ) {
-    private val duosCollection = firestore.collection("duos")
     private val usersCollection = firestore.collection("users")
+    private val invitesCollection = firestore.collection("duo_invites")
+    private val duosCollection = firestore.collection("duos")
 
-    suspend fun createDuoInvite(questionChoice: String, questionAnswer: String, photoUrl: String): Result<String> = try {
-        val currentUserId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
-        
-        val inviteCode = UUID.randomUUID().toString().substring(0, 6).uppercase()
-        val duoId = duosCollection.document().id
-        
-        val duo = Duo(
-            duoId = duoId,
-            user1Id = currentUserId,
-            status = "PENDING",
-            inviteCode = inviteCode,
-            questionChoice = questionChoice,
-            questionAnswer = questionAnswer,
-            photoUrl = photoUrl
-        )
-        
-        firestore.runBatch { batch ->
-            batch.set(duosCollection.document(duoId), duo)
-            batch.update(usersCollection.document(currentUserId), "duoId", duoId)
-        }.await()
-        
-        Result.success(inviteCode)
-    } catch (e: Exception) {
-        Result.failure(e)
+    fun listenToUserStatus(): Flow<User?> {
+        val uid = auth.currentUser?.uid ?: return kotlinx.coroutines.flow.flowOf(null)
+        return usersCollection.document(uid).snapshots().map { it.toObject(User::class.java) }
     }
 
-    suspend fun joinDuo(inviteCode: String): Result<Unit> = try {
-        val currentUserId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
+    fun listenToIncomingInvites(phone: String): Flow<DuoInvite?> {
+        Log.d("DuoRepository", "Listening for invites for phone: $phone")
         
-        val query = duosCollection.whereEqualTo("inviteCode", inviteCode)
-            .whereEqualTo("status", "PENDING")
-            .get().await()
-            
-        if (query.isEmpty) throw Exception("Invalid or expired invite code")
+        return invitesCollection
+            .whereEqualTo("receiverPhone", phone.trim())
+            .whereEqualTo("status", "pending")
+            .snapshots()
+            .map { snapshot ->
+                val invite = snapshot.documents.firstOrNull()?.toObject(DuoInvite::class.java)
+                Log.d("DuoRepository", "Found invite: ${invite?.inviteId}")
+                invite
+            }
+    }
+
+    suspend fun sendInvite(targetPhone: String): Result<Unit> = try {
+        val uid = auth.currentUser?.uid ?: throw Exception("Not authenticated")
         
-        val duoDoc = query.documents.first()
-        val duoId = duoDoc.id
-        
+        val senderDoc = usersCollection.document(uid).get().await()
+        val sender = senderDoc.toObject(User::class.java)
+        val senderName = "${sender?.firstName} ${sender?.lastName}"
+
+        val query = usersCollection.whereEqualTo("phoneNumber", targetPhone.trim()).get().await()
+        if (query.isEmpty) {
+            throw Exception("User with this phone number does not exist yet.")
+        }
+        val targetUserDoc = query.documents.first()
+        val targetUid = targetUserDoc.id
+
+        if (targetUid == uid) {
+            throw Exception("You cannot invite yourself.")
+        }
+
+        val inviteId = invitesCollection.document().id
+        val invite = DuoInvite(
+            inviteId = inviteId,
+            senderUid = uid,
+            senderName = senderName, 
+            receiverPhone = targetPhone.trim(),
+            status = "pending"
+        )
+
         firestore.runBatch { batch ->
-            batch.update(duosCollection.document(duoId), mapOf(
-                "user2Id" to currentUserId,
-                "status" to "ACTIVE"
-            ))
-            batch.update(usersCollection.document(currentUserId), "duoId", duoId)
+            batch.set(invitesCollection.document(inviteId), invite)
+            batch.update(usersCollection.document(uid), "status", "WAITING")
+            batch.update(usersCollection.document(targetUid), "status", "RECEIVED")
         }.await()
         
         Result.success(Unit)
@@ -65,24 +77,81 @@ class DuoRepository(
         Result.failure(e)
     }
 
-    suspend fun sendLike(myDuoId: String, targetDuoId: String): Result<Boolean> = try {
-        val targetDuoRef = duosCollection.document(targetDuoId)
-        val myDuoRef = duosCollection.document(myDuoId)
-
-        firestore.runTransaction { transaction ->
-            val targetDuo = transaction.get(targetDuoRef).toObject(Duo::class.java)
+    suspend fun cancelInvite(): Result<Unit> = try {
+        val uid = auth.currentUser?.uid ?: throw Exception("Not authenticated")
+        
+        val query = invitesCollection
+            .whereEqualTo("senderUid", uid)
+            .whereEqualTo("status", "pending")
+            .get().await()
             
-            transaction.update(myDuoRef, "likesSent", FieldValue.arrayUnion(targetDuoId))
-            transaction.update(targetDuoRef, "likesReceived", FieldValue.arrayUnion(myDuoId))
+        if (query.isEmpty) throw Exception("No pending invite found to cancel.")
+        
+        val inviteDoc = query.documents.first()
+        val invite = inviteDoc.toObject(DuoInvite::class.java)
+        val targetPhone = invite?.receiverPhone
 
-            if (targetDuo?.likesSent?.contains(myDuoId) == true) {
-                transaction.update(myDuoRef, "matches", FieldValue.arrayUnion(targetDuoId))
-                transaction.update(targetDuoRef, "matches", FieldValue.arrayUnion(myDuoId))
-                true 
-            } else {
-                false
+        firestore.runBatch { batch ->
+            batch.delete(inviteDoc.reference)
+            batch.update(usersCollection.document(uid), "status", "READY_TO_LINK")
+        }.await()
+        
+        if (targetPhone != null) {
+            val receiverQuery = usersCollection.whereEqualTo("phoneNumber", targetPhone).get().await()
+            if (!receiverQuery.isEmpty) {
+                val receiverUid = receiverQuery.documents.first().id
+                usersCollection.document(receiverUid).update("status", "READY_TO_LINK").await()
             }
-        }.await().let { Result.success(it) }
+        }
+        
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun acceptInvite(invite: DuoInvite): Result<Unit> = try {
+        val myUid = auth.currentUser?.uid ?: throw Exception("Not authenticated")
+        val duoId = duosCollection.document().id
+        
+        firestore.runTransaction { transaction ->
+            // 1. Create Duo with requested fields
+            val duo = mapOf(
+                "duoId" to duoId,
+                "userIds" to listOf(invite.senderUid, myUid),
+                "status" to "ACTIVE",
+                "createdAt" to FieldValue.serverTimestamp(),
+                "matches" to emptyList<String>()
+            )
+            transaction.set(duosCollection.document(duoId), duo)
+
+            // 2. Update both users
+            transaction.update(usersCollection.document(invite.senderUid), mapOf(
+                "status" to "LINKED",
+                "linkedDuoId" to duoId
+            ))
+            transaction.update(usersCollection.document(myUid), mapOf(
+                "status" to "LINKED",
+                "linkedDuoId" to duoId
+            ))
+
+            // 3. Mark Invite as accepted
+            transaction.update(invitesCollection.document(invite.inviteId), "status", "accepted")
+        }.await()
+        
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun declineInvite(inviteId: String, senderUid: String): Result<Unit> = try {
+        val myUid = auth.currentUser?.uid ?: throw Exception("Not authenticated")
+        
+        firestore.runBatch { batch ->
+            batch.update(invitesCollection.document(inviteId), "status", "declined")
+            batch.update(usersCollection.document(senderUid), "status", "READY_TO_LINK")
+            batch.update(usersCollection.document(myUid), "status", "READY_TO_LINK")
+        }.await()
+        Result.success(Unit)
     } catch (e: Exception) {
         Result.failure(e)
     }

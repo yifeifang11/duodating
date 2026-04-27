@@ -9,5 +9,6 @@ data class User(
     val questionChoice: String = "",
     val questionAnswer: String = "",
     val photoUrl: String = "",
-    val duoId: String? = null
+    val status: String = "ONBOARDING", // ONBOARDING, READY_TO_LINK, WAITING, RECEIVED, LINKED
+    val linkedDuoId: String? = null
 )

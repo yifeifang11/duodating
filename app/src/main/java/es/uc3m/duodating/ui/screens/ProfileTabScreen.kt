@@ -24,7 +24,8 @@ fun ProfileTabScreen() {
     var duoResponse by remember { mutableStateOf("We met at a coffee shop!") }
 
     // Individual Profile State (Current User)
-    var selfName by remember { mutableStateOf("Alice") }
+    var selfFirstName by remember { mutableStateOf("Alice") }
+    var selfLastName by remember { mutableStateOf("Smith") }
     var selfUri by remember { mutableStateOf<Uri?>(null) }
     var selfPrompt by remember { mutableStateOf("My most irrational fear is...") }
     var selfResponse by remember { mutableStateOf("Spiders, definitely spiders.") }
@@ -95,7 +96,7 @@ fun ProfileTabScreen() {
                             
                             // 2. Self Card
                             InfoCard(
-                                names = selfName,
+                                names = "$selfFirstName $selfLastName",
                                 prompt = selfPrompt,
                                 response = selfResponse,
                                 imageRes = null
@@ -138,7 +139,7 @@ fun ProfileTabScreen() {
                                 buttonText = "Save Changes"
                             )
 
-                            Divider(
+                            HorizontalDivider(
                                 modifier = Modifier.padding(vertical = 32.dp, horizontal = 24.dp),
                                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
                             )
@@ -152,6 +153,10 @@ fun ProfileTabScreen() {
                             Spacer(modifier = Modifier.height(16.dp))
                             SelfProfileEditContent(
                                 modifier = Modifier.padding(horizontal = 24.dp),
+                                firstName = selfFirstName,
+                                onFirstNameChange = { selfFirstName = it },
+                                lastName = selfLastName,
+                                onLastNameChange = { selfLastName = it },
                                 selectedUri = selfUri,
                                 onUriChange = { selfUri = it },
                                 selectedPrompt = selfPrompt,

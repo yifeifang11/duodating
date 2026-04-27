@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.firebase.auth.FirebaseAuth
 import es.uc3m.duodating.ui.viewmodels.ProfileViewModel
 
 @Composable
@@ -40,6 +41,8 @@ fun BuildSelfProfileScreen(
         0.5f to MaterialTheme.colorScheme.secondary
     )
 
+    var firstName by remember { mutableStateOf("") }
+    var lastName by remember { mutableStateOf("") }
     var selectedUri by remember { mutableStateOf<Uri?>(null) }
     var selectedPrompt by remember { mutableStateOf("My most irrational fear is...") }
     var promptResponse by remember { mutableStateOf("") }
@@ -92,6 +95,10 @@ fun BuildSelfProfileScreen(
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
             } else {
                 SelfProfileEditContent(
+                    firstName = firstName,
+                    onFirstNameChange = { firstName = it },
+                    lastName = lastName,
+                    onLastNameChange = { lastName = it },
                     selectedUri = selectedUri,
                     onUriChange = { selectedUri = it },
                     selectedPrompt = selectedPrompt,
@@ -99,12 +106,16 @@ fun BuildSelfProfileScreen(
                     promptResponse = promptResponse,
                     onResponseChange = { promptResponse = it },
                     onSave = {
-                        // Assuming basic info is already gathered or we use placeholders for this demo
+                        val auth = FirebaseAuth.getInstance()
+                        val email = auth.currentUser?.email
+                        // Extracting phone from the pseudo-email phone@duodating.com
+                        val phoneFromEmail = email?.substringBefore("@") ?: ""
+                        
                         viewModel.saveProfile(
-                            firstName = "User", // This should come from state or previous screen
-                            lastName = "Name",
-                            dob = "01/01/2000",
-                            phoneNumber = "123456789",
+                            firstName = firstName,
+                            lastName = lastName,
+                            dob = "01/01/2000", 
+                            phoneNumber = phoneFromEmail,
                             questionChoice = selectedPrompt,
                             questionAnswer = promptResponse,
                             imageUri = selectedUri,
@@ -122,6 +133,10 @@ fun BuildSelfProfileScreen(
 @Composable
 fun SelfProfileEditContent(
     modifier: Modifier = Modifier,
+    firstName: String,
+    onFirstNameChange: (String) -> Unit,
+    lastName: String,
+    onLastNameChange: (String) -> Unit,
     selectedUri: Uri?,
     onUriChange: (Uri?) -> Unit,
     selectedPrompt: String,
@@ -152,6 +167,40 @@ fun SelfProfileEditContent(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // First Name Field
+        OutlinedTextField(
+            value = firstName,
+            onValueChange = onFirstNameChange,
+            label = { Text("First Name") },
+            shape = RoundedCornerShape(26.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedBorderColor = MaterialTheme.colorScheme.primary,
+                focusedTextColor = MaterialTheme.colorScheme.onPrimary,
+                unfocusedTextColor = MaterialTheme.colorScheme.onPrimary,
+                unfocusedLabelColor = MaterialTheme.colorScheme.primary
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Last Name Field
+        OutlinedTextField(
+            value = lastName,
+            onValueChange = onLastNameChange,
+            label = { Text("Last Name") },
+            shape = RoundedCornerShape(26.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedBorderColor = MaterialTheme.colorScheme.primary,
+                focusedTextColor = MaterialTheme.colorScheme.onPrimary,
+                unfocusedTextColor = MaterialTheme.colorScheme.onPrimary,
+                unfocusedLabelColor = MaterialTheme.colorScheme.primary
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
         Text(
             text = "Add a photo",
             style = MaterialTheme.typography.bodyLarge.copy(
@@ -289,7 +338,7 @@ fun SelfProfileEditContent(
         Button(
             onClick = onSave, 
             modifier = Modifier.fillMaxWidth().height(60.dp),
-            enabled = promptResponse.isNotBlank() && selectedUri != null
+            enabled = firstName.isNotBlank() && lastName.isNotBlank() && promptResponse.isNotBlank() && selectedUri != null
         ) {
             Text(
                 text = buttonText,

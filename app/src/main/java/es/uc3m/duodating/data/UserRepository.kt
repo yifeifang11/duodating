@@ -28,37 +28,30 @@ class UserRepository(
         
         var photoUrl = ""
         if (imageUri != null) {
-            // Log the Uri to debug
             Log.d("UserRepository", "Uploading image: $imageUri")
-            
             val storageRef = storage.reference.child("profile_images/$uid.jpg")
-            
-            // Perform the upload and wait
             val uploadTask = storageRef.putFile(imageUri)
             uploadTask.await()
             
-            // Verify it exists before getting URL
             try {
                 photoUrl = storageRef.downloadUrl.await().toString()
-                Log.d("UserRepository", "Upload successful, URL: $photoUrl")
             } catch (e: Exception) {
-                Log.e("UserRepository", "Failed to get download URL", e)
                 throw Exception("Image uploaded but URL retrieval failed: ${e.message}")
             }
         }
 
-        val user = User(
-            uid = uid,
-            firstName = firstName,
-            lastName = lastName,
-            dob = dob,
-            phoneNumber = phoneNumber,
-            questionChoice = questionChoice,
-            questionAnswer = questionAnswer,
-            photoUrl = photoUrl
+        val userUpdates = mapOf(
+            "firstName" to firstName,
+            "lastName" to lastName,
+            "dob" to dob,
+            "phoneNumber" to phoneNumber,
+            "questionChoice" to questionChoice,
+            "questionAnswer" to questionAnswer,
+            "photoUrl" to photoUrl,
+            "status" to "READY_TO_LINK" // Set to READY_TO_LINK after finishing profile
         )
 
-        usersCollection.document(uid).set(user).await()
+        usersCollection.document(uid).update(userUpdates).await()
         Result.success(Unit)
     } catch (e: Exception) {
         Log.e("UserRepository", "Error saving profile", e)
