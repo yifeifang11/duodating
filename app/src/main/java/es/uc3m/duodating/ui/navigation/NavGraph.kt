@@ -43,9 +43,24 @@ fun NavGraph(
 
     // Reactive Navigation Observer
     LaunchedEffect(user?.status) {
-        if (user?.status == "LINKED") {
-            navController.navigate(Screen.Discover.route) {
-                popUpTo(0) { inclusive = true }
+        when (user?.status) {
+            "LINKED" -> {
+                if (currentDestination?.route != Screen.Discover.route && 
+                    currentDestination?.route != Screen.Matches.route &&
+                    currentDestination?.route != Screen.Chats.route &&
+                    currentDestination?.route != Screen.ViewProfile.route &&
+                    currentDestination?.route != Screen.Conversation.route) {
+                    navController.navigate(Screen.Discover.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            }
+            "DUO_ONBOARDING" -> {
+                if (currentDestination?.route != Screen.CreateDuoProfile.route) {
+                    navController.navigate(Screen.CreateDuoProfile.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
             }
         }
     }
@@ -96,6 +111,9 @@ fun NavGraph(
                             "RECEIVED" -> navController.navigate("accept_decline") {
                                 popUpTo(Screen.Welcome.route) { inclusive = true }
                             }
+                            "DUO_ONBOARDING" -> navController.navigate(Screen.CreateDuoProfile.route) {
+                                popUpTo(Screen.Welcome.route) { inclusive = true }
+                            }
                             "LINKED" -> navController.navigate(Screen.Discover.route) {
                                 popUpTo(Screen.Welcome.route) { inclusive = true }
                             }
@@ -132,7 +150,17 @@ fun NavGraph(
                 AcceptDeclineScreen(
                     viewModel = duoViewModel,
                     onAccepted = {
-                        // Handled reactively by LaunchedEffect
+                        // Handled reactively
+                    }
+                )
+            }
+
+            composable(Screen.CreateDuoProfile.route) {
+                CreateDuoProfileScreen(
+                    onFinish = {
+                        navController.navigate(Screen.Discover.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
                     }
                 )
             }
@@ -160,7 +188,15 @@ fun NavGraph(
             composable(Screen.Conversation.route) {
                 ConversationScreen(onBackClick = { navController.popBackStack() })
             }
-            composable(Screen.ViewProfile.route) { ProfileTabScreen() }
+            composable(Screen.ViewProfile.route) { 
+                ProfileTabScreen(
+                    onLogout = {
+                        navController.navigate(Screen.Welcome.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                ) 
+            }
         }
     }
 }

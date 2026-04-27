@@ -1,5 +1,6 @@
 package es.uc3m.duodating.ui.viewmodels
 
+import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -93,6 +94,26 @@ class DuoViewModel(
                 errorMessage = result.exceptionOrNull()?.message
             } else {
                 incomingInvite = null
+            }
+            isLoading = false
+        }
+    }
+
+    fun saveDuoProfile(
+        duoId: String,
+        questionChoice: String,
+        questionAnswer: String,
+        imageUri: Uri?,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch {
+            isLoading = true
+            errorMessage = null
+            val result = duoRepository.saveDuoProfile(duoId, questionChoice, questionAnswer, imageUri)
+            if (result.isSuccess) {
+                onSuccess()
+            } else {
+                errorMessage = result.exceptionOrNull()?.message
             }
             isLoading = false
         }

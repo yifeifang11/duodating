@@ -1,10 +1,12 @@
 package es.uc3m.duodating.data
 
+import android.net.Uri
 import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.snapshots
+import com.google.firebase.storage.FirebaseStorage
 import es.uc3m.duodating.data.models.Duo
 import es.uc3m.duodating.data.models.DuoInvite
 import es.uc3m.duodating.data.models.User
@@ -14,7 +16,8 @@ import kotlinx.coroutines.tasks.await
 
 class DuoRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
-    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
+    private val storage: FirebaseStorage = FirebaseStorage.getInstance()
 ) {
     private val usersCollection = firestore.collection("users")
     private val invitesCollection = firestore.collection("duo_invites")
@@ -114,27 +117,24 @@ class DuoRepository(
         val duoId = duosCollection.document().id
         
         firestore.runTransaction { transaction ->
-            // 1. Create Duo with requested fields
             val duo = mapOf(
                 "duoId" to duoId,
                 "userIds" to listOf(invite.senderUid, myUid),
-                "status" to "ACTIVE",
+                "status" to "ONBOARDING",
                 "createdAt" to FieldValue.serverTimestamp(),
                 "matches" to emptyList<String>()
             )
             transaction.set(duosCollection.document(duoId), duo)
 
-            // 2. Update both users
             transaction.update(usersCollection.document(invite.senderUid), mapOf(
-                "status" to "LINKED",
+                "status" to "DUO_ONBOARDING",
                 "linkedDuoId" to duoId
             ))
             transaction.update(usersCollection.document(myUid), mapOf(
-                "status" to "LINKED",
+                "status" to "DUO_ONBOARDING",
                 "linkedDuoId" to duoId
             ))
 
-            // 3. Mark Invite as accepted
             transaction.update(invitesCollection.document(invite.inviteId), "status", "accepted")
         }.await()
         
@@ -151,6 +151,43 @@ class DuoRepository(
             batch.update(usersCollection.document(senderUid), "status", "READY_TO_LINK")
             batch.update(usersCollection.document(myUid), "status", "READY_TO_LINK")
         }.await()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun saveDuoProfile(
+        duoId: String,
+        questionChoice: String,
+        questionAnswer: String,
+        imageUri: Uri?
+    ): Result<Unit> = try {
+        var photoUrl = ""
+        if (imageUri != null) {
+            val storageRef = storage.reference.child("duo_images/$duoId.jpg")
+            storageRef.putFile(imageUri).await()
+            photoUrl = storageRef.downloadUrl.await().toString()
+        }
+
+        firestore.runTransaction { transaction ->
+            val duoRef = duosCollection.document(duoId)
+            val duoSnapshot = transaction.get(duoRef)
+            val userIds = duoSnapshot.get("userIds") as? List<String> ?: emptyList()
+
+            // 1. Update Duo status and info
+            transaction.update(duoRef, mapOf(
+                "questionChoice" to questionChoice,
+                "questionAnswer" to questionAnswer,
+                "photoUrl" to photoUrl,
+                "status" to "ACTIVE"
+            ))
+
+            // 2. Update both users to LINKED
+            for (userId in userIds) {
+                transaction.update(usersCollection.document(userId), "status", "LINKED")
+            }
+        }.await()
+
         Result.success(Unit)
     } catch (e: Exception) {
         Result.failure(e)

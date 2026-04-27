@@ -7,12 +7,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
+import com.google.firebase.auth.FirebaseAuth
 
 @Composable
-fun ProfileTabScreen() {
+fun ProfileTabScreen(onLogout: () -> Unit) {
     var selectedTabIndex by remember { mutableIntStateOf(1) } // Default to Edit tab
     val tabs = listOf("Preview", "Edit")
 
@@ -169,6 +171,25 @@ fun ProfileTabScreen() {
                                 },
                                 buttonText = "Save Changes"
                             )
+                            
+                            Spacer(modifier = Modifier.height(48.dp))
+                            
+                            Button(
+                                onClick = {
+                                    FirebaseAuth.getInstance().signOut()
+                                    onLogout()
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp)
+                                    .height(56.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error
+                                )
+                            ) {
+                                Text("Log Out", style = MaterialTheme.typography.bodyLarge)
+                            }
+
                             Spacer(modifier = Modifier.height(32.dp))
                         }
                     }

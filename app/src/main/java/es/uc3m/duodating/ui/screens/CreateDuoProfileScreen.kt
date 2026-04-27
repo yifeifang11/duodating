@@ -20,9 +20,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import es.uc3m.duodating.ui.viewmodels.DuoViewModel
 
 @Composable
-fun CreateDuoProfileScreen(onFinish: () -> Unit) {
+fun CreateDuoProfileScreen(
+    onFinish: () -> Unit,
+    viewModel: DuoViewModel = viewModel()
+) {
     val colorStops = arrayOf(
         0.0f to MaterialTheme.colorScheme.background,
         0.5f to MaterialTheme.colorScheme.secondary
@@ -65,17 +70,40 @@ fun CreateDuoProfileScreen(onFinish: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)
             )
 
+            if (viewModel.errorMessage != null) {
+                Text(
+                    text = viewModel.errorMessage!!,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(24.dp)
+                )
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
 
-            DuoProfileEditContent(
-                selectedUri = selectedUri,
-                onUriChange = { selectedUri = it },
-                selectedPrompt = selectedPrompt,
-                onPromptChange = { selectedPrompt = it },
-                promptResponse = promptResponse,
-                onResponseChange = { promptResponse = it },
-                onSave = onFinish
-            )
+            if (viewModel.isLoading) {
+                CircularProgressIndicator()
+            } else {
+                DuoProfileEditContent(
+                    selectedUri = selectedUri,
+                    onUriChange = { selectedUri = it },
+                    selectedPrompt = selectedPrompt,
+                    onPromptChange = { selectedPrompt = it },
+                    promptResponse = promptResponse,
+                    onResponseChange = { promptResponse = it },
+                    onSave = {
+                        val duoId = viewModel.currentUser?.linkedDuoId
+                        if (duoId != null) {
+                            viewModel.saveDuoProfile(
+                                duoId = duoId,
+                                questionChoice = selectedPrompt,
+                                questionAnswer = promptResponse,
+                                imageUri = selectedUri,
+                                onSuccess = onFinish
+                            )
+                        }
+                    }
+                )
+            }
         }
     }
 }
@@ -249,8 +277,15 @@ fun DuoProfileEditContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Button(onClick = onSave, modifier = Modifier.fillMaxWidth()) {
-            Text(text = buttonText)
+        Button(
+            onClick = onSave, 
+            modifier = Modifier.fillMaxWidth().height(60.dp),
+            enabled = promptResponse.isNotBlank() && selectedUri != null
+        ) {
+            Text(
+                text = buttonText,
+                style = MaterialTheme.typography.bodyLarge
+            )
         }
 
         Spacer(modifier = Modifier.height(24.dp))
