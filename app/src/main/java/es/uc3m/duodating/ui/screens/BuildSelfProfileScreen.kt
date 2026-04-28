@@ -144,7 +144,8 @@ fun SelfProfileEditContent(
     promptResponse: String,
     onResponseChange: (String) -> Unit,
     onSave: () -> Unit,
-    buttonText: String = "Next"
+    buttonText: String = "Next",
+    isEnabled: Boolean = firstName.isNotBlank() && lastName.isNotBlank() && promptResponse.isNotBlank() && selectedUri != null
 ) {
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -338,7 +339,7 @@ fun SelfProfileEditContent(
         Button(
             onClick = onSave, 
             modifier = Modifier.fillMaxWidth().height(60.dp),
-            enabled = firstName.isNotBlank() && lastName.isNotBlank() && promptResponse.isNotBlank() && selectedUri != null
+            enabled = isEnabled
         ) {
             Text(
                 text = buttonText,

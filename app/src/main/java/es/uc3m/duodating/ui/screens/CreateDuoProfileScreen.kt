@@ -118,7 +118,8 @@ fun DuoProfileEditContent(
     promptResponse: String,
     onResponseChange: (String) -> Unit,
     onSave: () -> Unit,
-    buttonText: String = "Finish Onboarding"
+    buttonText: String = "Finish Onboarding",
+    isEnabled: Boolean = promptResponse.isNotBlank() && selectedUri != null
 ) {
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -280,7 +281,7 @@ fun DuoProfileEditContent(
         Button(
             onClick = onSave, 
             modifier = Modifier.fillMaxWidth().height(60.dp),
-            enabled = promptResponse.isNotBlank() && selectedUri != null
+            enabled = isEnabled
         ) {
             Text(
                 text = buttonText,

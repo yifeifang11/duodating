@@ -26,30 +26,23 @@ class UserRepository(
         val auth = FirebaseAuth.getInstance()
         val uid = auth.currentUser?.uid ?: throw Exception("User not authenticated.")
         
-        var photoUrl = ""
-        if (imageUri != null) {
-            Log.d("UserRepository", "Uploading image: $imageUri")
-            val storageRef = storage.reference.child("profile_images/$uid.jpg")
-            val uploadTask = storageRef.putFile(imageUri)
-            uploadTask.await()
-            
-            try {
-                photoUrl = storageRef.downloadUrl.await().toString()
-            } catch (e: Exception) {
-                throw Exception("Image uploaded but URL retrieval failed: ${e.message}")
-            }
-        }
-
-        val userUpdates = mapOf(
+        val userUpdates = mutableMapOf<String, Any>(
             "firstName" to firstName,
             "lastName" to lastName,
             "dob" to dob,
             "phoneNumber" to phoneNumber,
             "questionChoice" to questionChoice,
             "questionAnswer" to questionAnswer,
-            "photoUrl" to photoUrl,
-            "status" to "READY_TO_LINK" // Set to READY_TO_LINK after finishing profile
+            "status" to "READY_TO_LINK"
         )
+
+        if (imageUri != null) {
+            Log.d("UserRepository", "Uploading image: $imageUri")
+            val storageRef = storage.reference.child("profile_images/$uid.jpg")
+            storageRef.putFile(imageUri).await()
+            val photoUrl = storageRef.downloadUrl.await().toString()
+            userUpdates["photoUrl"] = photoUrl
+        }
 
         usersCollection.document(uid).update(userUpdates).await()
         Result.success(Unit)

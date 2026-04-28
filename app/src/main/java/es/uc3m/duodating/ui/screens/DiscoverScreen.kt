@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import es.uc3m.duodating.R
 import es.uc3m.duodating.data.models.DuoProfile
 import es.uc3m.duodating.ui.theme.DarkPink
@@ -209,6 +210,7 @@ fun InfoCard(
     names: String,
     prompt: String,
     response: String,
+    imageUrl: String? = null,
     imageRes: Int? = null,
     modifier: Modifier = Modifier
 ) {
@@ -225,7 +227,14 @@ fun InfoCard(
                     .height(450.dp)
                     .background(Color.Gray)
             ) {
-                if (imageRes != null) {
+                if (imageUrl != null && imageUrl.isNotEmpty()) {
+                    AsyncImage(
+                        model = imageUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else if (imageRes != null) {
                     Image(
                         painter = painterResource(id = imageRes),
                         contentDescription = null,

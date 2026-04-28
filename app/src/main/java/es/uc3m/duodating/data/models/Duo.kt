@@ -4,6 +4,7 @@ data class Duo(
     val duoId: String = "",
     val user1Id: String = "",
     val user2Id: String = "",
+    val userIds: List<String> = emptyList(),
     val status: String = "PENDING", // PENDING, ACTIVE
     val inviteCode: String = "",
     val questionChoice: String = "",

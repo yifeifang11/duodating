@@ -25,7 +25,28 @@ class DuoRepository(
 
     fun listenToUserStatus(): Flow<User?> {
         val uid = auth.currentUser?.uid ?: return kotlinx.coroutines.flow.flowOf(null)
-        return usersCollection.document(uid).snapshots().map { it.toObject(User::class.java) }
+        return usersCollection.document(uid).snapshots().map { snapshot ->
+            snapshot.toObject(User::class.java)?.copy(uid = snapshot.id)
+        }
+    }
+
+    fun listenToUser(userId: String): Flow<User?> {
+        return usersCollection.document(userId).snapshots().map { snapshot ->
+            snapshot.toObject(User::class.java)?.copy(uid = snapshot.id)
+        }
+    }
+
+    fun listenToDuo(duoId: String): Flow<Duo?> {
+        return duosCollection.document(duoId).snapshots().map { it.toObject(Duo::class.java) }
+    }
+
+    suspend fun getUserById(userId: String): User? {
+        return try {
+            val snapshot = usersCollection.document(userId).get().await()
+            snapshot.toObject(User::class.java)?.copy(uid = snapshot.id)
+        } catch (e: Exception) {
+            null
+        }
     }
 
     fun listenToIncomingInvites(phone: String): Flow<DuoInvite?> {
@@ -120,6 +141,8 @@ class DuoRepository(
             val duo = mapOf(
                 "duoId" to duoId,
                 "userIds" to listOf(invite.senderUid, myUid),
+                "user1Id" to invite.senderUid,
+                "user2Id" to myUid,
                 "status" to "ONBOARDING",
                 "createdAt" to FieldValue.serverTimestamp(),
                 "matches" to emptyList<String>()
@@ -162,27 +185,26 @@ class DuoRepository(
         questionAnswer: String,
         imageUri: Uri?
     ): Result<Unit> = try {
-        var photoUrl = ""
+        val duoUpdates = mutableMapOf<String, Any>(
+            "questionChoice" to questionChoice,
+            "questionAnswer" to questionAnswer,
+            "status" to "ACTIVE"
+        )
+
         if (imageUri != null) {
             val storageRef = storage.reference.child("duo_images/$duoId.jpg")
             storageRef.putFile(imageUri).await()
-            photoUrl = storageRef.downloadUrl.await().toString()
+            val photoUrl = storageRef.downloadUrl.await().toString()
+            duoUpdates["photoUrl"] = photoUrl
         }
 
         firestore.runTransaction { transaction ->
             val duoRef = duosCollection.document(duoId)
             val duoSnapshot = transaction.get(duoRef)
-            val userIds = duoSnapshot.get("userIds") as? List<String> ?: emptyList()
+            val userIds = (duoSnapshot.get("userIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
 
-            // 1. Update Duo status and info
-            transaction.update(duoRef, mapOf(
-                "questionChoice" to questionChoice,
-                "questionAnswer" to questionAnswer,
-                "photoUrl" to photoUrl,
-                "status" to "ACTIVE"
-            ))
+            transaction.update(duoRef, duoUpdates)
 
-            // 2. Update both users to LINKED
             for (userId in userIds) {
                 transaction.update(usersCollection.document(userId), "status", "LINKED")
             }

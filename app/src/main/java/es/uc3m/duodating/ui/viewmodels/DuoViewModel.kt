@@ -7,8 +7,10 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import es.uc3m.duodating.data.DuoRepository
+import es.uc3m.duodating.data.models.Duo
 import es.uc3m.duodating.data.models.DuoInvite
 import es.uc3m.duodating.data.models.User
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -22,11 +24,20 @@ class DuoViewModel(
     var incomingInvite by mutableStateOf<DuoInvite?>(null)
         private set
 
+    var currentDuo by mutableStateOf<Duo?>(null)
+        private set
+
+    var partnerUser by mutableStateOf<User?>(null)
+        private set
+
     var isLoading by mutableStateOf(false)
         private set
 
     var errorMessage by mutableStateOf<String?>(null)
         private set
+
+    private var duoJob: Job? = null
+    private var partnerJob: Job? = null
 
     init {
         observeUserStatus()
@@ -36,9 +47,51 @@ class DuoViewModel(
         viewModelScope.launch {
             duoRepository.listenToUserStatus().collectLatest { user ->
                 currentUser = user
-                if (user != null && user.status != "LINKED") {
-                    checkForInvites(user.phoneNumber)
+                if (user != null) {
+                    if (user.status != "LINKED" && user.status != "DUO_ONBOARDING") {
+                        checkForInvites(user.phoneNumber)
+                    }
+                    
+                    if (user.linkedDuoId != null) {
+                        observeDuo(user.linkedDuoId)
+                    } else {
+                        currentDuo = null
+                        partnerUser = null
+                        duoJob?.cancel()
+                        partnerJob?.cancel()
+                    }
                 }
+            }
+        }
+    }
+
+    private fun observeDuo(duoId: String) {
+        duoJob?.cancel()
+        duoJob = viewModelScope.launch {
+            duoRepository.listenToDuo(duoId).collectLatest { duo ->
+                currentDuo = duo
+                if (duo != null) {
+                    val myUid = currentUser?.uid
+                    val partnerId = duo.userIds.find { it != myUid }
+                    if (partnerId != null) {
+                        observePartner(partnerId)
+                    }
+                } else {
+                    partnerUser = null
+                    partnerJob?.cancel()
+                }
+            }
+        }
+    }
+
+    private fun observePartner(partnerId: String) {
+        // Only restart if it's a different partner or not already observing
+        if (partnerJob?.isActive == true && partnerUser?.uid == partnerId) return
+        
+        partnerJob?.cancel()
+        partnerJob = viewModelScope.launch {
+            duoRepository.listenToUser(partnerId).collectLatest { user ->
+                partnerUser = user
             }
         }
     }
