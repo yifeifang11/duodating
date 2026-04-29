@@ -30,6 +30,9 @@ class DuoViewModel(
     var partnerUser by mutableStateOf<User?>(null)
         private set
 
+    var availableDuos by mutableStateOf<List<Duo>>(emptyList())
+        private set
+
     var isLoading by mutableStateOf(false)
         private set
 
@@ -38,6 +41,7 @@ class DuoViewModel(
 
     private var duoJob: Job? = null
     private var partnerJob: Job? = null
+    private var feedJob: Job? = null
 
     init {
         observeUserStatus()
@@ -59,6 +63,8 @@ class DuoViewModel(
                         partnerUser = null
                         duoJob?.cancel()
                         partnerJob?.cancel()
+                        feedJob?.cancel()
+                        availableDuos = emptyList()
                     }
                 }
             }
@@ -71,6 +77,8 @@ class DuoViewModel(
             duoRepository.listenToDuo(duoId).collectLatest { duo ->
                 currentDuo = duo
                 if (duo != null) {
+                    duoRepository.setCurrentDuoId(duo.duoId)
+                    observeFeed(duo)
                     val myUid = currentUser?.uid
                     val partnerId = duo.userIds.find { it != myUid }
                     if (partnerId != null) {
@@ -79,7 +87,19 @@ class DuoViewModel(
                 } else {
                     partnerUser = null
                     partnerJob?.cancel()
+                    feedJob?.cancel()
+                    availableDuos = emptyList()
                 }
+            }
+        }
+    }
+
+    private fun observeFeed(myDuo: Duo) {
+        feedJob?.cancel()
+        feedJob = viewModelScope.launch {
+            val excluded = myDuo.likedDuoIds + myDuo.matchedDuoIds
+            duoRepository.listenToAvailableDuos(myDuo.duoId, excluded).collectLatest { duos ->
+                availableDuos = duos
             }
         }
     }
@@ -169,6 +189,23 @@ class DuoViewModel(
                 errorMessage = result.exceptionOrNull()?.message
             }
             isLoading = false
+        }
+    }
+
+    fun likeDuo(targetDuoId: String, onMatch: () -> Unit = {}) {
+        viewModelScope.launch {
+            isLoading = true
+            errorMessage = null
+            val result = duoRepository.likeDuo(targetDuoId)
+            isLoading = false
+            
+            if (result.isSuccess) {
+                if (result.getOrNull() == true) {
+                    onMatch()
+                }
+            } else {
+                errorMessage = result.exceptionOrNull()?.message ?: "Unknown error"
+            }
         }
     }
 }

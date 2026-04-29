@@ -23,73 +23,38 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import es.uc3m.duodating.R
-import es.uc3m.duodating.data.models.DuoProfile
 import es.uc3m.duodating.ui.theme.DarkPink
 import es.uc3m.duodating.ui.theme.HotPink
 import es.uc3m.duodating.ui.theme.White
+import es.uc3m.duodating.ui.viewmodels.DuoViewModel
 
 @Composable
-fun DiscoverScreen() {
-    val profiles = remember {
-        listOf(
-            DuoProfile(
-                user1id = "1",
-                user1name = "Alice",
-                user2id = "2",
-                user2name = "Anna",
-                user1prompt = "My favorite travel memory",
-                user1promptresponse = "Seeing the Northern Lights in Iceland!",
-                user2prompt = "I'm looking for...",
-                user2promptresponse = "Someone to go hiking with every weekend.",
-                user1image = "alice",
-                user2image = "alice",
-                combinedprompt = "Our ideal Sunday",
-                combinedpromptresponse = "Brunch followed by a long walk in the park.",
-                combinedimage = "alice_and_anna"
-            ),
-            DuoProfile(
-                user1id = "3",
-                user1name = "Chloe",
-                user2id = "4",
-                user2name = "Diana",
-                user1prompt = "Fact about me",
-                user1promptresponse = "I have a collection of over 50 vintage vinyls.",
-                user2prompt = "Dating me is like...",
-                user2promptresponse = "Finding a \$20 bill in your old jeans.",
-                user1image = "alice",
-                user2image = "alice",
-                combinedprompt = "We both love",
-                combinedpromptresponse = "Late night karaoke and terrible singing.",
-                combinedimage = "alice_and_anna"
-            ),
-            DuoProfile(
-                user1id = "5",
-                user1name = "Eva",
-                user2id = "6",
-                user2name = "Fiona",
-                user1prompt = "Green flag if...",
-                user1promptresponse = "You know how to cook a decent carbonara.",
-                user2prompt = "Worst idea I ever had",
-                user2promptresponse = "Attempting to cut my own bangs during lockdown.",
-                user1image = "alice",
-                user2image = "alice",
-                combinedprompt = "Our friendship in a nutshell",
-                combinedpromptresponse = "Chaos, laughter, and constant coffee runs.",
-                combinedimage = "alice_and_anna"
-            )
-        )
+fun DiscoverScreen(
+    viewModel: DuoViewModel = viewModel()
+) {
+    val availableDuos = viewModel.availableDuos
+    val isLoading = viewModel.isLoading
+    val errorMessage = viewModel.errorMessage
+
+    // Local index to show one duo at a time (though the flow filters them out once liked)
+    var currentIndex by remember { mutableIntStateOf(0) }
+
+    // Reset index if the list changes significantly
+    LaunchedEffect(availableDuos.size) {
+        if (currentIndex >= availableDuos.size) {
+            currentIndex = 0
+        }
     }
 
-    var currentIndex by remember { mutableIntStateOf(0) }
-    val likedProfiles = remember { mutableStateListOf<String>() }
-    val passedProfiles = remember { mutableStateListOf<String>() }
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (isLoading && availableDuos.isEmpty()) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+        } else if (availableDuos.isNotEmpty() && currentIndex < availableDuos.size) {
+            val currentDuo = availableDuos[currentIndex]
 
-    if (currentIndex < profiles.size) {
-        val currentDuo = profiles[currentIndex]
-
-        Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -99,26 +64,10 @@ fun DiscoverScreen() {
             ) {
                 item {
                     InfoCard(
-                        names = "${currentDuo.user1name} & ${currentDuo.user2name}",
-                        prompt = currentDuo.combinedprompt,
-                        response = currentDuo.combinedpromptresponse,
-                        imageRes = R.drawable.alice_and_anna
-                    )
-                }
-                item {
-                    InfoCard(
-                        names = currentDuo.user1name,
-                        prompt = currentDuo.user1prompt,
-                        response = currentDuo.user1promptresponse,
-                        imageRes = R.drawable.alice
-                    )
-                }
-                item {
-                    InfoCard(
-                        names = currentDuo.user2name,
-                        prompt = currentDuo.user2prompt,
-                        response = currentDuo.user2promptresponse,
-                        imageRes = R.drawable.alice
+                        names = "The Duo",
+                        prompt = currentDuo.questionChoice,
+                        response = currentDuo.questionAnswer,
+                        imageUrl = currentDuo.photoUrl
                     )
                 }
             }
@@ -133,12 +82,12 @@ fun DiscoverScreen() {
             ) {
                 IconButton(
                     onClick = {
-                        passedProfiles.add(currentDuo.user1id + "_" + currentDuo.user2id)
                         currentIndex++
                     },
                     modifier = Modifier
                         .size(64.dp)
-                        .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.9f), RoundedCornerShape(32.dp))
+                        .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.9f), RoundedCornerShape(32.dp)),
+                    enabled = !isLoading
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
@@ -147,59 +96,80 @@ fun DiscoverScreen() {
                         modifier = Modifier.size(32.dp)
                     )
                 }
-                IconButton(
-                    onClick = {
-                        likedProfiles.add(currentDuo.user1id + "_" + currentDuo.user2id)
-                        currentIndex++
-                    },
-                    modifier = Modifier
-                        .size(64.dp)
-                        .background(HotPink.copy(alpha = 0.9f), RoundedCornerShape(32.dp))
-                ) {
+                
+                Box(contentAlignment = Alignment.Center) {
+                    IconButton(
+                        onClick = {
+                            viewModel.likeDuo(currentDuo.duoId) {
+                                // Optional: handle match animation/navigation
+                            }
+                        },
+                        modifier = Modifier
+                            .size(64.dp)
+                            .background(HotPink.copy(alpha = 0.9f), RoundedCornerShape(32.dp)),
+                        enabled = !isLoading
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Favorite,
+                            contentDescription = "Like",
+                            tint = White,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(64.dp),
+                            color = HotPink,
+                            strokeWidth = 4.dp
+                        )
+                    }
+                }
+            }
+        } else if (!isLoading) {
+            // No more profiles
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
-                        imageVector = Icons.Default.Favorite,
-                        contentDescription = "Like",
-                        tint = White,
-                        modifier = Modifier.size(32.dp)
+                        imageVector = Icons.Default.SentimentDissatisfied,
+                        contentDescription = null,
+                        modifier = Modifier.size(100.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "No more duos found nearby!",
+                        style = MaterialTheme.typography.headlineSmall,
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Check back later or expand your preferences.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                     )
                 }
             }
         }
-    } else {
-        // No more profiles
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(32.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    imageVector = Icons.Default.SentimentDissatisfied,
-                    contentDescription = null,
-                    modifier = Modifier.size(100.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "No more profiles to show right now!",
-                    style = MaterialTheme.typography.headlineSmall,
-                    textAlign = TextAlign.Center,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Check back later or expand your preferences.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-                )
-                Spacer(modifier = Modifier.height(32.dp))
-                Button(onClick = { currentIndex = 0 }) {
-                    Text("Start Over (Demo)")
+
+        errorMessage?.let {
+            Snackbar(
+                modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
+                action = {
+                    TextButton(onClick = { /* Clear error in VM if needed */ }) {
+                        Text("Dismiss")
+                    }
                 }
+            ) {
+                Text(it)
             }
         }
     }

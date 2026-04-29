@@ -44,13 +44,30 @@ fun NavGraph(
     // Reactive Navigation Observer
     LaunchedEffect(user?.status) {
         when (user?.status) {
-            "LINKED" -> {
-                if (currentDestination?.route != Screen.Discover.route && 
-                    currentDestination?.route != Screen.Matches.route &&
-                    currentDestination?.route != Screen.Chats.route &&
-                    currentDestination?.route != Screen.ViewProfile.route &&
-                    currentDestination?.route != Screen.Conversation.route) {
-                    navController.navigate(Screen.Discover.route) {
+            "ONBOARDING" -> {
+                if (currentDestination?.route != Screen.BuildSelfProfile.route) {
+                    navController.navigate(Screen.BuildSelfProfile.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            }
+            "READY_TO_LINK" -> {
+                if (currentDestination?.route != Screen.FindDuoPartner.route) {
+                    navController.navigate(Screen.FindDuoPartner.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            }
+            "WAITING" -> {
+                if (currentDestination?.route != "waiting") {
+                    navController.navigate("waiting") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            }
+            "RECEIVED" -> {
+                if (currentDestination?.route != "accept_decline") {
+                    navController.navigate("accept_decline") {
                         popUpTo(0) { inclusive = true }
                     }
                 }
@@ -58,6 +75,20 @@ fun NavGraph(
             "DUO_ONBOARDING" -> {
                 if (currentDestination?.route != Screen.CreateDuoProfile.route) {
                     navController.navigate(Screen.CreateDuoProfile.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            }
+            "LINKED" -> {
+                val mainScreens = listOf(
+                    Screen.Discover.route,
+                    Screen.Matches.route,
+                    Screen.Chats.route,
+                    Screen.ViewProfile.route,
+                    Screen.Conversation.route
+                )
+                if (currentDestination?.route !in mainScreens) {
+                    navController.navigate(Screen.Discover.route) {
                         popUpTo(0) { inclusive = true }
                     }
                 }
@@ -88,39 +119,15 @@ fun NavGraph(
             composable(Screen.CreateAccount.route) {
                 CreateAccountScreen(
                     onAccountCreated = {
-                        navController.navigate(Screen.BuildSelfProfile.route) {
-                            popUpTo(Screen.Welcome.route) { inclusive = true }
-                        }
+                        // Handled reactively via user status
                     }
                 )
             }
             
             composable(Screen.Login.route) {
                 LoginScreen(
-                    onLoginSuccess = { status ->
-                        when (status) {
-                            "ONBOARDING" -> navController.navigate(Screen.BuildSelfProfile.route) {
-                                popUpTo(Screen.Welcome.route) { inclusive = true }
-                            }
-                            "READY_TO_LINK" -> navController.navigate(Screen.FindDuoPartner.route) {
-                                popUpTo(Screen.Welcome.route) { inclusive = true }
-                            }
-                            "WAITING" -> navController.navigate("waiting") {
-                                popUpTo(Screen.Welcome.route) { inclusive = true }
-                            }
-                            "RECEIVED" -> navController.navigate("accept_decline") {
-                                popUpTo(Screen.Welcome.route) { inclusive = true }
-                            }
-                            "DUO_ONBOARDING" -> navController.navigate(Screen.CreateDuoProfile.route) {
-                                popUpTo(Screen.Welcome.route) { inclusive = true }
-                            }
-                            "LINKED" -> navController.navigate(Screen.Discover.route) {
-                                popUpTo(Screen.Welcome.route) { inclusive = true }
-                            }
-                            else -> navController.navigate(Screen.Discover.route) {
-                                popUpTo(Screen.Welcome.route) { inclusive = true }
-                            }
-                        }
+                    onLoginSuccess = {
+                        // Handled reactively via user status
                     }
                 )
             }
@@ -129,7 +136,7 @@ fun NavGraph(
             composable(Screen.BuildSelfProfile.route) {
                 BuildSelfProfileScreen(
                     onNext = { 
-                        navController.navigate(Screen.FindDuoPartner.route)
+                        // Handled reactively via user status (once status updates in DB)
                     }
                 )
             }
@@ -138,7 +145,7 @@ fun NavGraph(
             composable(Screen.FindDuoPartner.route) {
                 FindPartnerScreen(
                     viewModel = duoViewModel,
-                    onInviteSent = { navController.navigate("waiting") }
+                    onInviteSent = { /* Handled reactively */ }
                 )
             }
             
@@ -149,18 +156,14 @@ fun NavGraph(
             composable("accept_decline") {
                 AcceptDeclineScreen(
                     viewModel = duoViewModel,
-                    onAccepted = {
-                        // Handled reactively
-                    }
+                    onAccepted = { /* Handled reactively */ }
                 )
             }
 
             composable(Screen.CreateDuoProfile.route) {
                 CreateDuoProfileScreen(
                     onFinish = {
-                        navController.navigate(Screen.Discover.route) {
-                            popUpTo(0) { inclusive = true }
-                        }
+                        // Handled reactively via user status
                     }
                 )
             }

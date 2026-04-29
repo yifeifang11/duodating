@@ -10,5 +10,6 @@ data class User(
     val questionAnswer: String = "",
     val photoUrl: String = "",
     val status: String = "ONBOARDING", // ONBOARDING, READY_TO_LINK, WAITING, RECEIVED, LINKED
-    val linkedDuoId: String? = null
+    val linkedDuoId: String? = null,
+    val pendingInviteId: String? = null
 )

@@ -23,6 +23,12 @@ class DuoRepository(
     private val invitesCollection = firestore.collection("duo_invites")
     private val duosCollection = firestore.collection("duos")
 
+    private var currentDuoId: String? = null
+
+    fun setCurrentDuoId(duoId: String) {
+        currentDuoId = duoId
+    }
+
     fun listenToUserStatus(): Flow<User?> {
         val uid = auth.currentUser?.uid ?: return kotlinx.coroutines.flow.flowOf(null)
         return usersCollection.document(uid).snapshots().map { snapshot ->
@@ -211,6 +217,46 @@ class DuoRepository(
         }.await()
 
         Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    fun listenToAvailableDuos(myDuoId: String, excludedIds: List<String>): Flow<List<Duo>> {
+        return duosCollection
+            .whereEqualTo("status", "ACTIVE")
+            .snapshots()
+            .map { snapshot ->
+                snapshot.documents
+                    .mapNotNull { it.toObject(Duo::class.java) }
+                    .filter { it.duoId != myDuoId && it.duoId !in excludedIds }
+            }
+    }
+
+    suspend fun likeDuo(targetDuoId: String): Result<Boolean> = try {
+        val myDuoId = currentDuoId ?: throw Exception("Current Duo ID not set")
+        
+        val isMatch = firestore.runTransaction { transaction ->
+            val myDuoRef = duosCollection.document(myDuoId)
+            val targetDuoRef = duosCollection.document(targetDuoId)
+            
+            val targetDuo = transaction.get(targetDuoRef).toObject(Duo::class.java)
+                ?: throw Exception("Target Duo not found")
+            
+            // 1. Add targetDuoId to current Duo's likedDuoIds
+            transaction.update(myDuoRef, "likedDuoIds", FieldValue.arrayUnion(targetDuoId))
+            
+            // 2. Check if target Duo liked us back
+            if (targetDuo.likedDuoIds.contains(myDuoId)) {
+                // It's a match!
+                transaction.update(myDuoRef, "matchedDuoIds", FieldValue.arrayUnion(targetDuoId))
+                transaction.update(targetDuoRef, "matchedDuoIds", FieldValue.arrayUnion(myDuoId))
+                true
+            } else {
+                false
+            }
+        }.await()
+        
+        Result.success(isMatch)
     } catch (e: Exception) {
         Result.failure(e)
     }
