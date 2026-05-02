@@ -60,6 +60,15 @@ class DuoRepository(
         }
     }
 
+    fun getAllActiveDuos(): Flow<List<Duo>> {
+        return duosCollection
+            .whereEqualTo("status", "ACTIVE")
+            .snapshots()
+            .map { snapshot ->
+                snapshot.documents.mapNotNull { it.toObject(Duo::class.java) }
+            }
+    }
+
     fun listenToIncomingInvites(phone: String): Flow<DuoInvite?> {
         Log.d("DuoRepository", "Listening for invites for phone: $phone")
         
@@ -156,7 +165,9 @@ class DuoRepository(
                 "user2Id" to myUid,
                 "status" to "ONBOARDING",
                 "createdAt" to FieldValue.serverTimestamp(),
-                "matches" to emptyList<String>()
+                "matches" to emptyList<String>(),
+                "likesSent" to emptyList<String>(),
+                "likesReceived" to emptyList<String>(),
             )
             transaction.set(duosCollection.document(duoId), duo)
 
@@ -223,6 +234,38 @@ class DuoRepository(
 
         Result.success(Unit)
     } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun sendLike(targetDuoId: String): Result<Unit> = try {
+        val myUid = auth.currentUser?.uid ?: throw Exception("Not authenticated")
+        val userDoc = usersCollection.document(myUid).get().await()
+        val myDuoId = userDoc.getString("linkedDuoId") ?: throw Exception("User not in a duo")
+
+        firestore.runTransaction { transaction ->
+            val targetDuoRef = duosCollection.document(targetDuoId)
+            val myDuoRef = duosCollection.document(myDuoId)
+
+            // --- STEP 1: READS (Must come first) ---
+            val targetDuoSnapshot = transaction.get(targetDuoRef)
+            val targetLikesSent = targetDuoSnapshot.get("likesSent") as? List<*>
+
+            // --- STEP 2: WRITES (Must come last) ---
+            transaction.update(myDuoRef, "likesSent", FieldValue.arrayUnion(targetDuoId))
+            transaction.update(targetDuoRef, "likesReceived", FieldValue.arrayUnion(myDuoId))
+
+            // Check for match logic
+            if (targetLikesSent?.contains(myDuoId) == true) {
+                // It's a match!
+                transaction.update(myDuoRef, "matches", FieldValue.arrayUnion(targetDuoId))
+                transaction.update(targetDuoRef, "matches", FieldValue.arrayUnion(myDuoId))
+            }
+        }.await()
+
+        Log.d("DuoRepository", "Like sent successfully from $myDuoId to $targetDuoId")
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Log.e("DuoRepository", "Like failed: ${e.message}")
         Result.failure(e)
     }
 }
