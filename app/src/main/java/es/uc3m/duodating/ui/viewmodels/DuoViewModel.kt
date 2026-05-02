@@ -36,6 +36,8 @@ class DuoViewModel(
     var errorMessage by mutableStateOf<String?>(null)
         private set
 
+    private var statusJob: Job? = null
+    private var inviteJob: Job? = null
     private var duoJob: Job? = null
     private var partnerJob: Job? = null
 
@@ -44,12 +46,17 @@ class DuoViewModel(
     }
 
     private fun observeUserStatus() {
-        viewModelScope.launch {
+        statusJob?.cancel()
+        statusJob = viewModelScope.launch {
             duoRepository.listenToUserStatus().collectLatest { user ->
                 currentUser = user
                 if (user != null) {
+                    // Only check for invites if we are not already in a Duo
                     if (user.status != "LINKED" && user.status != "DUO_ONBOARDING") {
                         checkForInvites(user.phoneNumber)
+                    } else {
+                        inviteJob?.cancel()
+                        incomingInvite = null
                     }
                     
                     if (user.linkedDuoId != null) {
@@ -60,12 +67,22 @@ class DuoViewModel(
                         duoJob?.cancel()
                         partnerJob?.cancel()
                     }
+                } else {
+                    // Reset everything if user logs out
+                    currentDuo = null
+                    partnerUser = null
+                    incomingInvite = null
+                    inviteJob?.cancel()
+                    duoJob?.cancel()
+                    partnerJob?.cancel()
                 }
             }
         }
     }
 
     private fun observeDuo(duoId: String) {
+        if (duoJob?.isActive == true && currentDuo?.duoId == duoId) return
+        
         duoJob?.cancel()
         duoJob = viewModelScope.launch {
             duoRepository.listenToDuo(duoId).collectLatest { duo ->
@@ -85,7 +102,6 @@ class DuoViewModel(
     }
 
     private fun observePartner(partnerId: String) {
-        // Only restart if it's a different partner or not already observing
         if (partnerJob?.isActive == true && partnerUser?.uid == partnerId) return
         
         partnerJob?.cancel()
@@ -97,7 +113,9 @@ class DuoViewModel(
     }
 
     private fun checkForInvites(phone: String) {
-        viewModelScope.launch {
+        if (inviteJob?.isActive == true) return
+        
+        inviteJob = viewModelScope.launch {
             duoRepository.listenToIncomingInvites(phone).collectLatest { invite ->
                 incomingInvite = invite
             }
@@ -107,6 +125,7 @@ class DuoViewModel(
     fun sendInvite(targetPhone: String) {
         viewModelScope.launch {
             isLoading = true
+            errorMessage = null
             val result = duoRepository.sendInvite(targetPhone)
             if (result.isFailure) {
                 errorMessage = result.exceptionOrNull()?.message
@@ -118,6 +137,7 @@ class DuoViewModel(
     fun cancelInvite() {
         viewModelScope.launch {
             isLoading = true
+            errorMessage = null
             val result = duoRepository.cancelInvite()
             if (result.isFailure) {
                 errorMessage = result.exceptionOrNull()?.message
@@ -130,6 +150,7 @@ class DuoViewModel(
         val invite = incomingInvite ?: return
         viewModelScope.launch {
             isLoading = true
+            errorMessage = null
             val result = duoRepository.acceptInvite(invite)
             if (result.isFailure) {
                 errorMessage = result.exceptionOrNull()?.message
@@ -142,6 +163,7 @@ class DuoViewModel(
         val invite = incomingInvite ?: return
         viewModelScope.launch {
             isLoading = true
+            errorMessage = null
             val result = duoRepository.declineInvite(invite.inviteId, invite.senderUid)
             if (result.isFailure) {
                 errorMessage = result.exceptionOrNull()?.message

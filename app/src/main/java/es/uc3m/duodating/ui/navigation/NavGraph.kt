@@ -44,6 +44,27 @@ fun NavGraph(
     // Reactive Navigation Observer
     LaunchedEffect(user?.status) {
         when (user?.status) {
+            "WAITING" -> {
+                if (currentDestination?.route != "waiting") {
+                    navController.navigate("waiting") {
+                        popUpTo(Screen.Welcome.route) { inclusive = true }
+                    }
+                }
+            }
+            "RECEIVED" -> {
+                if (currentDestination?.route != "accept_decline") {
+                    navController.navigate("accept_decline") {
+                        popUpTo(Screen.Welcome.route) { inclusive = true }
+                    }
+                }
+            }
+            "DUO_ONBOARDING" -> {
+                if (currentDestination?.route != Screen.CreateDuoProfile.route) {
+                    navController.navigate(Screen.CreateDuoProfile.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            }
             "LINKED" -> {
                 if (currentDestination?.route != Screen.Discover.route && 
                     currentDestination?.route != Screen.Matches.route &&
@@ -55,10 +76,11 @@ fun NavGraph(
                     }
                 }
             }
-            "DUO_ONBOARDING" -> {
-                if (currentDestination?.route != Screen.CreateDuoProfile.route) {
-                    navController.navigate(Screen.CreateDuoProfile.route) {
-                        popUpTo(0) { inclusive = true }
+            "READY_TO_LINK" -> {
+                // If they were waiting/receiving and it got cancelled/declined
+                if (currentDestination?.route == "waiting" || currentDestination?.route == "accept_decline") {
+                    navController.navigate(Screen.FindDuoPartner.route) {
+                        popUpTo(Screen.Welcome.route) { inclusive = true }
                     }
                 }
             }
@@ -138,7 +160,7 @@ fun NavGraph(
             composable(Screen.FindDuoPartner.route) {
                 FindPartnerScreen(
                     viewModel = duoViewModel,
-                    onInviteSent = { navController.navigate("waiting") }
+                    onInviteSent = { /* Handled reactively */ }
                 )
             }
             

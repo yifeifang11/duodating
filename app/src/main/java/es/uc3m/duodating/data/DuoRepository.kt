@@ -10,8 +10,9 @@ import com.google.firebase.storage.FirebaseStorage
 import es.uc3m.duodating.data.models.Duo
 import es.uc3m.duodating.data.models.DuoInvite
 import es.uc3m.duodating.data.models.User
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.tasks.await
 
 class DuoRepository(
@@ -23,10 +24,20 @@ class DuoRepository(
     private val invitesCollection = firestore.collection("duo_invites")
     private val duosCollection = firestore.collection("duos")
 
-    fun listenToUserStatus(): Flow<User?> {
-        val uid = auth.currentUser?.uid ?: return kotlinx.coroutines.flow.flowOf(null)
-        return usersCollection.document(uid).snapshots().map { snapshot ->
-            snapshot.toObject(User::class.java)?.copy(uid = snapshot.id)
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun listenToUserStatus(): Flow<User?> = callbackFlow {
+        val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+            trySend(firebaseAuth.currentUser?.uid)
+        }
+        auth.addAuthStateListener(listener)
+        awaitClose { auth.removeAuthStateListener(listener) }
+    }.flatMapLatest { uid ->
+        if (uid == null) {
+            flowOf(null)
+        } else {
+            usersCollection.document(uid).snapshots().map { snapshot ->
+                snapshot.toObject(User::class.java)?.copy(uid = snapshot.id)
+            }
         }
     }
 
