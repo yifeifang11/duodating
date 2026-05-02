@@ -60,6 +60,15 @@ class DuoRepository(
         }
     }
 
+    fun getAllActiveDuos(): Flow<List<Duo>> {
+        return duosCollection
+            .whereEqualTo("status", "ACTIVE")
+            .snapshots()
+            .map { snapshot ->
+                snapshot.documents.mapNotNull { it.toObject(Duo::class.java) }
+            }
+    }
+
     fun listenToIncomingInvites(phone: String): Flow<DuoInvite?> {
         Log.d("DuoRepository", "Listening for invites for phone: $phone")
         
@@ -221,6 +230,33 @@ class DuoRepository(
             }
         }.await()
 
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun sendLike(targetDuoId: String): Result<Unit> = try {
+        val myUid = auth.currentUser?.uid ?: throw Exception("Not authenticated")
+        val userDoc = usersCollection.document(myUid).get().await()
+        val myDuoId = userDoc.getString("linkedDuoId") ?: throw Exception("User not in a duo")
+
+        firestore.runTransaction { transaction ->
+            val targetDuoRef = duosCollection.document(targetDuoId)
+            val myDuoRef = duosCollection.document(myDuoId)
+            
+            transaction.update(myDuoRef, "likesSent", FieldValue.arrayUnion(targetDuoId))
+            transaction.update(targetDuoRef, "likesReceived", FieldValue.arrayUnion(myDuoId))
+            
+            // Check for match
+            val targetDuoSnapshot = transaction.get(targetDuoRef)
+            val targetLikesSent = targetDuoSnapshot.get("likesSent") as? List<*>
+            
+            if (targetLikesSent?.contains(myDuoId) == true) {
+                // It's a match!
+                transaction.update(myDuoRef, "matches", FieldValue.arrayUnion(targetDuoId))
+                transaction.update(targetDuoRef, "matches", FieldValue.arrayUnion(myDuoId))
+            }
+        }.await()
         Result.success(Unit)
     } catch (e: Exception) {
         Result.failure(e)

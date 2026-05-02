@@ -14,7 +14,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -23,71 +22,33 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import es.uc3m.duodating.R
-import es.uc3m.duodating.data.models.DuoProfile
 import es.uc3m.duodating.ui.theme.DarkPink
 import es.uc3m.duodating.ui.theme.HotPink
 import es.uc3m.duodating.ui.theme.White
+import es.uc3m.duodating.ui.viewmodels.DiscoverViewModel
 
 @Composable
-fun DiscoverScreen() {
-    val profiles = remember {
-        listOf(
-            DuoProfile(
-                user1id = "1",
-                user1name = "Alice",
-                user2id = "2",
-                user2name = "Anna",
-                user1prompt = "My favorite travel memory",
-                user1promptresponse = "Seeing the Northern Lights in Iceland!",
-                user2prompt = "I'm looking for...",
-                user2promptresponse = "Someone to go hiking with every weekend.",
-                user1image = "alice",
-                user2image = "alice",
-                combinedprompt = "Our ideal Sunday",
-                combinedpromptresponse = "Brunch followed by a long walk in the park.",
-                combinedimage = "alice_and_anna"
-            ),
-            DuoProfile(
-                user1id = "3",
-                user1name = "Chloe",
-                user2id = "4",
-                user2name = "Diana",
-                user1prompt = "Fact about me",
-                user1promptresponse = "I have a collection of over 50 vintage vinyls.",
-                user2prompt = "Dating me is like...",
-                user2promptresponse = "Finding a \$20 bill in your old jeans.",
-                user1image = "alice",
-                user2image = "alice",
-                combinedprompt = "We both love",
-                combinedpromptresponse = "Late night karaoke and terrible singing.",
-                combinedimage = "alice_and_anna"
-            ),
-            DuoProfile(
-                user1id = "5",
-                user1name = "Eva",
-                user2id = "6",
-                user2name = "Fiona",
-                user1prompt = "Green flag if...",
-                user1promptresponse = "You know how to cook a decent carbonara.",
-                user2prompt = "Worst idea I ever had",
-                user2promptresponse = "Attempting to cut my own bangs during lockdown.",
-                user1image = "alice",
-                user2image = "alice",
-                combinedprompt = "Our friendship in a nutshell",
-                combinedpromptresponse = "Chaos, laughter, and constant coffee runs.",
-                combinedimage = "alice_and_anna"
-            )
-        )
+fun DiscoverScreen(
+    viewModel: DiscoverViewModel = viewModel()
+) {
+    val duos = viewModel.duos
+    var currentIndex by remember { mutableIntStateOf(0) }
+
+    if (viewModel.isLoading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
     }
 
-    var currentIndex by remember { mutableIntStateOf(0) }
-    val likedProfiles = remember { mutableStateListOf<String>() }
-    val passedProfiles = remember { mutableStateListOf<String>() }
-
-    if (currentIndex < profiles.size) {
-        val currentDuo = profiles[currentIndex]
+    if (currentIndex < duos.size) {
+        val currentDuoWithUsers = duos[currentIndex]
+        val duo = currentDuoWithUsers.duo
+        val user1 = currentDuoWithUsers.user1
+        val user2 = currentDuoWithUsers.user2
 
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
@@ -97,28 +58,31 @@ fun DiscoverScreen() {
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 100.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Duo Card
                 item {
                     InfoCard(
-                        names = "${currentDuo.user1name} & ${currentDuo.user2name}",
-                        prompt = currentDuo.combinedprompt,
-                        response = currentDuo.combinedpromptresponse,
-                        imageRes = R.drawable.alice_and_anna
+                        names = "${user1.firstName} & ${user2.firstName}",
+                        prompt = duo.questionChoice,
+                        response = duo.questionAnswer,
+                        imageUrl = duo.photoUrl
                     )
                 }
+                // User 1 Card
                 item {
                     InfoCard(
-                        names = currentDuo.user1name,
-                        prompt = currentDuo.user1prompt,
-                        response = currentDuo.user1promptresponse,
-                        imageRes = R.drawable.alice
+                        names = user1.firstName,
+                        prompt = user1.questionChoice,
+                        response = user1.questionAnswer,
+                        imageUrl = user1.photoUrl
                     )
                 }
+                // User 2 Card
                 item {
                     InfoCard(
-                        names = currentDuo.user2name,
-                        prompt = currentDuo.user2prompt,
-                        response = currentDuo.user2promptresponse,
-                        imageRes = R.drawable.alice
+                        names = user2.firstName,
+                        prompt = user2.questionChoice,
+                        response = user2.questionAnswer,
+                        imageUrl = user2.photoUrl
                     )
                 }
             }
@@ -133,7 +97,7 @@ fun DiscoverScreen() {
             ) {
                 IconButton(
                     onClick = {
-                        passedProfiles.add(currentDuo.user1id + "_" + currentDuo.user2id)
+                        viewModel.passDuo(duo.duoId)
                         currentIndex++
                     },
                     modifier = Modifier
@@ -149,7 +113,7 @@ fun DiscoverScreen() {
                 }
                 IconButton(
                     onClick = {
-                        likedProfiles.add(currentDuo.user1id + "_" + currentDuo.user2id)
+                        viewModel.likeDuo(duo.duoId)
                         currentIndex++
                     },
                     modifier = Modifier
@@ -196,10 +160,6 @@ fun DiscoverScreen() {
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                 )
-                Spacer(modifier = Modifier.height(32.dp))
-                Button(onClick = { currentIndex = 0 }) {
-                    Text("Start Over (Demo)")
-                }
             }
         }
     }
