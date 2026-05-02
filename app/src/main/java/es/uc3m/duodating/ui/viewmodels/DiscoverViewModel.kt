@@ -1,6 +1,7 @@
 package es.uc3m.duodating.ui.viewmodels
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
@@ -16,6 +17,9 @@ class DiscoverViewModel(
 ) : ViewModel() {
 
     var duos by mutableStateOf<List<DuoWithUsers>>(emptyList())
+        private set
+
+    var currentIndex by mutableIntStateOf(0)
         private set
 
     var isLoading by mutableStateOf(false)
@@ -59,9 +63,10 @@ class DiscoverViewModel(
         viewModelScope.launch {
             duoRepository.sendLike(targetDuoId)
         }
+        currentIndex++
     }
 
     fun passDuo(targetDuoId: String) {
-        // Implementation for passing if needed (e.g., local filtering or DB update)
+        currentIndex++
     }
 }
