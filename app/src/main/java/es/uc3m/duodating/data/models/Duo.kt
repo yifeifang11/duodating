@@ -12,5 +12,6 @@ data class Duo(
     val photoUrl: String = "",
     val likesSent: List<String> = emptyList(),
     val likesReceived: List<String> = emptyList(),
-    val matches: List<String> = emptyList()
+    val matches: List<String> = emptyList(),
+    val createdAt: com.google.firebase.Timestamp? = null
 )

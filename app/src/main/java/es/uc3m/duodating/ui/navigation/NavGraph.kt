@@ -20,6 +20,8 @@ import androidx.navigation.compose.rememberNavController
 import es.uc3m.duodating.ui.screens.*
 import es.uc3m.duodating.ui.viewmodels.DuoViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 
 @Composable
 fun NavGraph(
@@ -202,13 +204,23 @@ fun NavGraph(
                     }
                 ) 
             }
-            composable(Screen.Chats.route) { 
+            composable(Screen.Chats.route) {
                 ChatsScreen(
-                    onChatClick = { navController.navigate(Screen.Conversation.route) }
-                ) 
+                    onChatClick = { otherDuoId ->
+                        navController.navigate(Screen.Conversation.createRoute(otherDuoId))
+                    }
+                )
             }
-            composable(Screen.Conversation.route) {
-                ConversationScreen(onBackClick = { navController.popBackStack() })
+            composable(
+                route = Screen.Conversation.route,
+                arguments = listOf(navArgument("otherDuoId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val otherDuoId = backStackEntry.arguments?.getString("otherDuoId") ?: ""
+                ConversationScreen(
+                    otherDuoId = otherDuoId,
+                    myDuoId = duoViewModel.currentUser?.linkedDuoId ?: "",
+                    onBackClick = { navController.popBackStack() }
+                )
             }
             composable(Screen.ViewProfile.route) { 
                 ProfileTabScreen(
