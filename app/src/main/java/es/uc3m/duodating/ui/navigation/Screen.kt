@@ -21,10 +21,15 @@ sealed class Screen(val route: String) {
 
     // Main App Flow
     object Discover : Screen("discover")
-    object Matches : Screen("matches")
+    object Likes : Screen("likes")
     object Chats : Screen("chats")
     object Conversation : Screen("conversation")
     object ViewProfile : Screen("view_profile")
+
+    object DuoProfile : Screen("duoProfile/{duoId}") {
+        fun createRoute(duoId: String) = "duoProfile/$duoId"
+    }
+
 }
 
 sealed class BottomBarScreen(
@@ -38,12 +43,11 @@ sealed class BottomBarScreen(
         icon = Icons.Default.Search
     )
 
-    object Matches : BottomBarScreen(
-        route = Screen.Matches.route,
+    object Likes : BottomBarScreen(
+        route = Screen.Likes.route,
         title = "Likes",
         icon = Icons.Default.Favorite
     )
-
     object Chats : BottomBarScreen(
         route = Screen.Chats.route,
         title = "Chats",

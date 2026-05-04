@@ -20,6 +20,8 @@ import androidx.navigation.compose.rememberNavController
 import es.uc3m.duodating.ui.screens.*
 import es.uc3m.duodating.ui.viewmodels.DuoViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import es.uc3m.duodating.ui.viewmodels.LikesViewModel
+import androidx.compose.runtime.remember
 
 @Composable
 fun NavGraph(
@@ -34,7 +36,7 @@ fun NavGraph(
     // List of screens that should show the bottom bar
     val bottomBarScreens = listOf(
         BottomBarScreen.Discover,
-        BottomBarScreen.Matches,
+        BottomBarScreen.Likes,
         BottomBarScreen.Chats,
         BottomBarScreen.Profile
     )
@@ -67,7 +69,7 @@ fun NavGraph(
             }
             "LINKED" -> {
                 if (currentDestination?.route != Screen.Discover.route && 
-                    currentDestination?.route != Screen.Matches.route &&
+                    currentDestination?.route != Screen.Likes.route &&
                     currentDestination?.route != Screen.Chats.route &&
                     currentDestination?.route != Screen.ViewProfile.route &&
                     currentDestination?.route != Screen.Conversation.route) {
@@ -189,19 +191,31 @@ fun NavGraph(
 
             // --- Main App Flow ---
             composable(Screen.Discover.route) { DiscoverScreen() }
-            composable(Screen.Matches.route) { 
-                MatchesScreen(
-                    onProfileClick = {
-                        navController.navigate(Screen.Discover.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
+            composable(Screen.Likes.route) {
+                val likesViewModel: LikesViewModel = viewModel()
+                LikesScreen(
+                    viewModel = likesViewModel,
+                    onProfileClick = { duoId ->
+                        navController.navigate(Screen.DuoProfile.createRoute(duoId))
                     }
                 ) 
             }
+
+            composable(Screen.DuoProfile.route) { backStackEntry ->
+                val duoId = backStackEntry.arguments?.getString("duoId") ?: return@composable
+                // Get the Likes backstack entry to reuse the same LikesViewModel instance
+                val likesBackStackEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry(Screen.Likes.route)
+                }
+                val likesViewModel: LikesViewModel = viewModel(likesBackStackEntry)
+
+                LikesDuoProfileScreen(
+                    duoId = duoId,
+                    likesViewModel = likesViewModel,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
             composable(Screen.Chats.route) { 
                 ChatsScreen(
                     onChatClick = { navController.navigate(Screen.Conversation.route) }

@@ -9,8 +9,10 @@ import com.google.firebase.firestore.snapshots
 import com.google.firebase.storage.FirebaseStorage
 import es.uc3m.duodating.data.models.Duo
 import es.uc3m.duodating.data.models.DuoInvite
+import es.uc3m.duodating.data.models.DuoWithUsers
 import es.uc3m.duodating.data.models.User
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.tasks.await
@@ -54,8 +56,11 @@ class DuoRepository(
     suspend fun getUserById(userId: String): User? {
         return try {
             val snapshot = usersCollection.document(userId).get().await()
-            snapshot.toObject(User::class.java)?.copy(uid = snapshot.id)
+            val user = snapshot.toObject(User::class.java)?.copy(uid = snapshot.id)
+            android.util.Log.d("LikesVM", "getUserById($userId) -> exists=${snapshot.exists()} firstName=${user?.firstName}")
+            user
         } catch (e: Exception) {
+            android.util.Log.e("LikesVM", "getUserById($userId) exception: ${e.message}")
             null
         }
     }
@@ -301,8 +306,104 @@ class DuoRepository(
                 }
         )
 
+        suspend fun passDuo(targetDuoId: String): Result<Unit> = try {
+            val myUid = auth.currentUser?.uid ?: throw Exception("Not authenticated")
 
+            val userDoc = usersCollection.document(myUid).get().await()
+            val myDuoId = userDoc.getString("linkedDuoId")
+                ?: throw Exception("User not in a duo")
 
+            val myDuoRef = duosCollection.document(myDuoId)
+            val targetDuoRef = duosCollection.document(targetDuoId)
+
+            firestore.runTransaction { transaction ->
+
+                // Remove from my sent likes
+                transaction.update(
+                    myDuoRef,
+                    "likesSent",
+                    FieldValue.arrayRemove(targetDuoId)
+                )
+
+                // Remove from their received likes
+                transaction.update(
+                    targetDuoRef,
+                    "likesReceived",
+                    FieldValue.arrayRemove(myDuoId)
+                )
+
+                // OPTIONAL (recommended): prevent reappearance
+                val passRef = firestore.collection("passes")
+                    .document("${myDuoId}_$targetDuoId")
+
+                transaction.set(passRef, mapOf(
+                    "fromDuoId" to myDuoId,
+                    "toDuoId" to targetDuoId,
+                    "createdAt" to FieldValue.serverTimestamp()
+                ))
+            }.await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
+
+    // Skip a duo if not interested
+    suspend fun passDuo(targetDuoId: String): Result<Unit> = try {
+        val myUid = auth.currentUser?.uid ?: throw Exception("Not authenticated")
+
+        val userDoc = usersCollection.document(myUid).get().await()
+        val myDuoId = userDoc.getString("linkedDuoId")
+            ?: throw Exception("User not in a duo")
+
+        val myDuoRef = duosCollection.document(myDuoId)
+        val targetDuoRef = duosCollection.document(targetDuoId)
+
+        firestore.runTransaction { transaction ->
+
+            // Remove from my sent likes
+            transaction.update(
+                myDuoRef,
+                "likesSent",
+                FieldValue.arrayRemove(targetDuoId)
+            )
+
+            // Remove from their received likes
+            transaction.update(
+                targetDuoRef,
+                "likesReceived",
+                FieldValue.arrayRemove(myDuoId)
+            )
+        }.await()
+
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    // Used to get one specific profile
+    suspend fun getDuoWithUsersById(duoId: String): DuoWithUsers? =
+        kotlinx.coroutines.coroutineScope {
+            try {
+                val duoSnapshot = duosCollection.document(duoId).get().await()
+                val duo = duoSnapshot.toObject(Duo::class.java) ?: return@coroutineScope null
+
+                val user1Deferred = async { getUserById(duo.user1Id) }
+                val user2Deferred = async { getUserById(duo.user2Id) }
+
+                val user1 = user1Deferred.await()
+                val user2 = user2Deferred.await()
+
+                if (user1 != null && user2 != null) {
+                    DuoWithUsers(duo, user1, user2)
+                } else {
+                    null
+                }
+
+            } catch (e: Exception) {
+                null
+            }
+        }
 
 }
