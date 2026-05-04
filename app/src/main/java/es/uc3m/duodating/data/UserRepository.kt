@@ -21,7 +21,8 @@ class UserRepository(
         phoneNumber: String,
         questionChoice: String,
         questionAnswer: String,
-        imageUri: Uri?
+        imageUri: Uri?,
+        fcmToken: String? = null
     ): Result<Unit> = try {
         val auth = FirebaseAuth.getInstance()
         val uid = auth.currentUser?.uid ?: throw Exception("User not authenticated.")
@@ -35,6 +36,10 @@ class UserRepository(
             "questionAnswer" to questionAnswer,
             "status" to "READY_TO_LINK"
         )
+
+        fcmToken?.let {
+            userUpdates["fcmToken"] = it
+        }
 
         if (imageUri != null) {
             Log.d("UserRepository", "Uploading image: $imageUri")
@@ -56,6 +61,21 @@ class UserRepository(
         val snapshot = usersCollection.document(uid).get().await()
         Result.success(snapshot.toObject(User::class.java))
     } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    suspend fun updateFcmToken(token: String): Result<Unit> = try {
+        val uid = FirebaseAuth.getInstance().currentUser?.uid
+            ?: throw Exception("User not authenticated")
+
+        usersCollection.document(uid)
+            .update("fcmToken", token)
+            .await()
+
+        Log.d("UserRepository", "FCM Token updated successfully")
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Log.e("UserRepository", "Error updating FCM token", e)
         Result.failure(e)
     }
 }

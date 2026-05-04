@@ -22,6 +22,7 @@ import es.uc3m.duodating.ui.viewmodels.DuoViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 
 @Composable
 fun NavGraph(
@@ -213,7 +214,8 @@ fun NavGraph(
             }
             composable(
                 route = Screen.Conversation.route,
-                arguments = listOf(navArgument("otherDuoId") { type = NavType.StringType })
+                arguments = listOf(navArgument("otherDuoId") { type = NavType.StringType }),
+                deepLinks = listOf(navDeepLink { uriPattern = "duodating://chat/{otherDuoId}" })
             ) { backStackEntry ->
                 val otherDuoId = backStackEntry.arguments?.getString("otherDuoId") ?: ""
                 ConversationScreen(
