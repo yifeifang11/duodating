@@ -71,7 +71,6 @@ class DuoRepository(
 
     fun listenToIncomingInvites(phone: String): Flow<DuoInvite?> {
         Log.d("DuoRepository", "Listening for invites for phone: $phone")
-        
         return invitesCollection
             .whereEqualTo("receiverPhone", phone.trim())
             .whereEqualTo("status", "pending")
@@ -268,4 +267,42 @@ class DuoRepository(
         Log.e("DuoRepository", "Like failed: ${e.message}")
         Result.failure(e)
     }
+
+    fun getLikes(): Flow<List<Duo>> = flow{
+        val myUid = auth.currentUser?.uid ?: throw Exception("Not authenticated")
+        val userDoc = usersCollection.document(myUid).get().await()
+        val myDuoId = userDoc.getString("linkedDuoId")
+            ?: throw Exception("User not in a duo")
+
+        emitAll(
+            duosCollection.document(myDuoId)
+                .snapshots()
+                .flatMapLatest { duoSnapshot ->
+                    val likesReceived = duoSnapshot.get("likesReceived") as? List<*>
+                        ?: emptyList<Any>()
+
+                    val likedDuoIds = likesReceived.filterIsInstance<String>()
+
+                    if(likedDuoIds.isEmpty()){
+                        flowOf(emptyList())
+                    } else{
+                        // Create flow for each liked duo
+                        val flows = likedDuoIds.map{duoId ->
+                            duosCollection.document(duoId)
+                                .snapshots()
+                                .map{ it.toObject(Duo::class.java)}
+                        }
+                        // Combining all flows into one
+                        combine(flows) {duosArray ->
+                            duosArray.filterNotNull().toList()
+                        }
+                    }
+
+                }
+        )
+
+
+
+    }
+
 }
