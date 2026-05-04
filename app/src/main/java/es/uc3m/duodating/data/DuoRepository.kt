@@ -6,6 +6,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.snapshots
+import com.google.firebase.firestore.Query
+import es.uc3m.duodating.data.models.Message
 import com.google.firebase.storage.FirebaseStorage
 import es.uc3m.duodating.data.models.Duo
 import es.uc3m.duodating.data.models.DuoInvite
@@ -266,6 +268,67 @@ class DuoRepository(
         Result.success(Unit)
     } catch (e: Exception) {
         Log.e("DuoRepository", "Like failed: ${e.message}")
+        Result.failure(e)
+    }
+
+    /**
+     * Generates a deterministic chat ID for a pair of duos by sorting their IDs
+     * alphabetically and joining with an underscore. Both duos compute the same ID
+     * regardless of who initiates, so they read and write to the same chat document.
+     */
+    fun getChatId(duoId1: String, duoId2: String): String {
+        return listOf(duoId1, duoId2).sorted().joinToString("_")
+    }
+
+    /**
+     * Real-time stream of messages for a chat between two duos, ordered oldest-first.
+     */
+    fun listenToMessages(myDuoId: String, otherDuoId: String): Flow<List<Message>> {
+        val chatId = getChatId(myDuoId, otherDuoId)
+        return firestore.collection("chats")
+            .document(chatId)
+            .collection("messages")
+            .orderBy("timestamp", Query.Direction.ASCENDING)
+            .snapshots()
+            .map { snapshot ->
+                snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(Message::class.java)?.copy(messageId = doc.id)
+                }
+            }
+    }
+
+    /**
+     * Sends a message from the current user to the chat between their duo and another duo.
+     */
+    suspend fun sendMessage(
+        myDuoId: String,
+        otherDuoId: String,
+        text: String
+    ): Result<Unit> = try {
+        val uid = auth.currentUser?.uid ?: throw Exception("Not authenticated")
+        val senderDoc = usersCollection.document(uid).get().await()
+        val sender = senderDoc.toObject(User::class.java)
+        val senderName = "${sender?.firstName ?: ""} ${sender?.lastName ?: ""}".trim()
+
+        val chatId = getChatId(myDuoId, otherDuoId)
+        val messagesRef = firestore.collection("chats")
+            .document(chatId)
+            .collection("messages")
+
+        val messageId = messagesRef.document().id
+        val message = Message(
+            messageId = messageId,
+            senderId = uid,
+            senderName = senderName,
+            text = text.trim(),
+            timestamp = null // @ServerTimestamp will fill this in
+        )
+
+        messagesRef.document(messageId).set(message).await()
+        Log.d("DuoRepository", "Message sent in chat $chatId")
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Log.e("DuoRepository", "sendMessage failed: ${e.message}")
         Result.failure(e)
     }
 }
