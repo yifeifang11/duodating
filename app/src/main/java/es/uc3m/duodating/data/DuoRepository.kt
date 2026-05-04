@@ -250,26 +250,22 @@ class DuoRepository(
             val targetDuoRef = duosCollection.document(targetDuoId)
             val myDuoRef = duosCollection.document(myDuoId)
 
-            // --- STEP 1: READS (Must come first) ---
             val targetDuoSnapshot = transaction.get(targetDuoRef)
             val targetLikesSent = targetDuoSnapshot.get("likesSent") as? List<*>
 
-            // --- STEP 2: WRITES (Must come last) ---
             transaction.update(myDuoRef, "likesSent", FieldValue.arrayUnion(targetDuoId))
-            transaction.update(targetDuoRef, "likesReceived", FieldValue.arrayUnion(myDuoId))
 
-            // Check for match logic
+            // ✅ Remove from their likesReceived so it disappears from your likes list
+            transaction.update(targetDuoRef, "likesReceived", FieldValue.arrayRemove(myDuoId))
+
             if (targetLikesSent?.contains(myDuoId) == true) {
-                // It's a match!
                 transaction.update(myDuoRef, "matches", FieldValue.arrayUnion(targetDuoId))
                 transaction.update(targetDuoRef, "matches", FieldValue.arrayUnion(myDuoId))
             }
         }.await()
 
-        Log.d("DuoRepository", "Like sent successfully from $myDuoId to $targetDuoId")
         Result.success(Unit)
     } catch (e: Exception) {
-        Log.e("DuoRepository", "Like failed: ${e.message}")
         Result.failure(e)
     }
 
