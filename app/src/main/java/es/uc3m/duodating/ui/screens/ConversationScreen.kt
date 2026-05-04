@@ -17,18 +17,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.firebase.auth.FirebaseAuth
 import es.uc3m.duodating.data.models.Message
 import es.uc3m.duodating.ui.theme.HotPink
 
 @Composable
 fun ConversationScreen(onBackClick: () -> Unit = {}) {
+    val currentUid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
     val messages = remember {
         mutableStateListOf(
-            Message("Sarah", "Hey everyone! Ready for our double date?", false),
-            Message("Emma", "I'm so excited! Sarah and I were just talking about it.", false),
-            Message("James", "Definitely! Where should we go?", false),
-            Message("You", "How about that new Italian place downtown?", true),
-            Message("Sarah", "Oh, I love that place! Let's plan this date!", false)
+            Message(senderId = "user_sarah", senderName = "Sarah", text = "Hey everyone! Ready for our double date?"),
+            Message(senderId = "user_emma", senderName = "Emma", text = "I'm so excited!"),
+            Message(senderId = currentUid, senderName = "You", text = "How about that new Italian place downtown?"),
         )
     }
 
@@ -122,11 +122,12 @@ fun ConversationScreen(onBackClick: () -> Unit = {}) {
 }
 
 @Composable
-fun MessageBubble(message: Message) {
-    val alignment = if (message.isFromUser) Alignment.End else Alignment.Start
-    val bubbleColor = if (message.isFromUser) HotPink else MaterialTheme.colorScheme.surfaceVariant
-    val textColor = if (message.isFromUser) Color.White else MaterialTheme.colorScheme.onSurface
-    val shape = if (message.isFromUser) {
+fun MessageBubble(message: Message, currentUid: String) {
+    val isFromUser = message.senderId == currentUid
+    val alignment = if (isFromUser) Alignment.End else Alignment.Start
+    val bubbleColor = if (isFromUser) HotPink else MaterialTheme.colorScheme.surfaceVariant
+    val textColor = if (isFromUser) Color.White else MaterialTheme.colorScheme.onSurface
+    val shape = if (isFromUser) {
         RoundedCornerShape(16.dp, 16.dp, 0.dp, 16.dp)
     } else {
         RoundedCornerShape(16.dp, 16.dp, 16.dp, 0.dp)
@@ -136,7 +137,7 @@ fun MessageBubble(message: Message) {
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = alignment
     ) {
-        if (!message.isFromUser) {
+        if (!isFromUser) {
             Text(
                 text = message.senderName,
                 style = MaterialTheme.typography.labelSmall,
