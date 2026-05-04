@@ -16,6 +16,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.launch
+import es.uc3m.duodating.data.models.DuoWithUsers
 
 class DuoRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
@@ -330,5 +332,47 @@ class DuoRepository(
     } catch (e: Exception) {
         Log.e("DuoRepository", "sendMessage failed: ${e.message}")
         Result.failure(e)
+    }
+
+    /**
+     * Returns the list of duos that the current user's duo has matched with,
+     * paired with their two users. Updates in real time as new matches happen.
+     */
+    fun listenToMyMatches(): Flow<List<DuoWithUsers>> = callbackFlow {
+        val uid = auth.currentUser?.uid
+        if (uid == null) {
+            trySend(emptyList())
+            close()
+            return@callbackFlow
+        }
+
+        val userListener = usersCollection.document(uid).addSnapshotListener { userSnap, _ ->
+            val myDuoId = userSnap?.getString("linkedDuoId")
+            if (myDuoId == null) {
+                trySend(emptyList())
+                return@addSnapshotListener
+            }
+
+            duosCollection.document(myDuoId).addSnapshotListener { duoSnap, _ ->
+                val matchedIds = (duoSnap?.get("matches") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                if (matchedIds.isEmpty()) {
+                    trySend(emptyList())
+                    return@addSnapshotListener
+                }
+
+                launch {
+                    val results = matchedIds.mapNotNull { matchedDuoId ->
+                        val matchedDuoDoc = duosCollection.document(matchedDuoId).get().await()
+                        val matchedDuo = matchedDuoDoc.toObject(Duo::class.java) ?: return@mapNotNull null
+                        val user1 = getUserById(matchedDuo.user1Id) ?: return@mapNotNull null
+                        val user2 = getUserById(matchedDuo.user2Id) ?: return@mapNotNull null
+                        DuoWithUsers(matchedDuo, user1, user2)
+                    }
+                    trySend(results)
+                }
+            }
+        }
+
+        awaitClose { userListener.remove() }
     }
 }
