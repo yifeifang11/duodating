@@ -75,7 +75,7 @@ fun ConversationScreen(onBackClick: () -> Unit = {}) {
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(messages) { message ->
-                    MessageBubble(message)
+                    MessageBubble(message, currentUid)
                 }
             }
 
@@ -105,7 +105,13 @@ fun ConversationScreen(onBackClick: () -> Unit = {}) {
                 IconButton(
                     onClick = {
                         if (textState.isNotBlank()) {
-                            messages.add(Message("You", textState, true))
+                            messages.add(
+                                Message(
+                                    senderId = currentUid,
+                                    senderName = "You",
+                                    text = textState
+                                )
+                            )
                             textState = ""
                         }
                     },
