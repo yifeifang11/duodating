@@ -244,6 +244,38 @@ class DuoRepository(
         Result.failure(e)
     }
 
+    suspend fun sendLikeDiscover(targetDuoId: String): Result<Unit> = try {
+        val myUid = auth.currentUser?.uid ?: throw Exception("Not authenticated")
+        val userDoc = usersCollection.document(myUid).get().await()
+        val myDuoId = userDoc.getString("linkedDuoId") ?: throw Exception("User not in a duo")
+
+        firestore.runTransaction { transaction ->
+            val targetDuoRef = duosCollection.document(targetDuoId)
+            val myDuoRef = duosCollection.document(myDuoId)
+
+            // --- STEP 1: READS (Must come first) ---
+            val targetDuoSnapshot = transaction.get(targetDuoRef)
+            val targetLikesSent = targetDuoSnapshot.get("likesSent") as? List<*>
+
+            // --- STEP 2: WRITES (Must come last) ---
+            transaction.update(myDuoRef, "likesSent", FieldValue.arrayUnion(targetDuoId))
+            transaction.update(targetDuoRef, "likesReceived", FieldValue.arrayUnion(myDuoId))
+
+            // Check for match logic
+            if (targetLikesSent?.contains(myDuoId) == true) {
+                // It's a match!
+                transaction.update(myDuoRef, "matches", FieldValue.arrayUnion(targetDuoId))
+                transaction.update(targetDuoRef, "matches", FieldValue.arrayUnion(myDuoId))
+            }
+        }.await()
+
+        Log.d("DuoRepository", "Like sent successfully from $myDuoId to $targetDuoId")
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Log.e("DuoRepository", "Like failed: ${e.message}")
+        Result.failure(e)
+    }
+
     suspend fun sendLike(targetDuoId: String): Result<Unit> = try {
         val myUid = auth.currentUser?.uid ?: throw Exception("Not authenticated")
         val userDoc = usersCollection.document(myUid).get().await()
@@ -364,14 +396,14 @@ class DuoRepository(
             // Remove from my sent likes
             transaction.update(
                 myDuoRef,
-                "likesSent",
+                "likesReceived",
                 FieldValue.arrayRemove(targetDuoId)
             )
 
             // Remove from their received likes
             transaction.update(
                 targetDuoRef,
-                "likesReceived",
+                "likesSent",
                 FieldValue.arrayRemove(myDuoId)
             )
         }.await()

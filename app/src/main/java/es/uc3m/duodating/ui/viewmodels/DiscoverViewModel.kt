@@ -61,7 +61,7 @@ class DiscoverViewModel(
 
     fun likeDuo(targetDuoId: String) {
         viewModelScope.launch {
-            duoRepository.sendLike(targetDuoId)
+            duoRepository.sendLikeDiscover(targetDuoId)
         }
         currentIndex++
     }
