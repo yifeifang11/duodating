@@ -32,31 +32,34 @@ class DiscoverViewModel(
         loadDuos()
     }
 
-    private fun loadDuos() {
-        viewModelScope.launch {
-            isLoading = true
-            val currentUid = FirebaseAuth.getInstance().currentUser?.uid
-            
-            // We'll use a flow to get all active duos
-            duoRepository.getAllActiveDuos().collectLatest { activeDuos ->
-                val resultList = mutableListOf<DuoWithUsers>()
-                
-                for (duo in activeDuos) {
-                    // Filter out the current user's own duo
-                    if (currentUid != null && duo.userIds.contains(currentUid)) continue
-                    
-                    val user1 = duoRepository.getUserById(duo.user1Id)
-                    val user2 = duoRepository.getUserById(duo.user2Id)
-                    
-                    if (user1 != null && user2 != null) {
-                        resultList.add(DuoWithUsers(duo, user1, user2))
-                    }
-                }
-                
-                duos = resultList
-                isLoading = false
-            }
+    private fun loadDuos() {viewModelScope.launch {
+        isLoading = true
+        val currentUid = FirebaseAuth.getInstance().currentUser?.uid
+
+        if (currentUid == null) {
+            errorMessage = "User not logged in"
+            isLoading = false
+            return@launch
         }
+
+        // Use the new repository function that handles exclusion logic
+        duoRepository.getDiscoveryFeed(currentUid).collectLatest { filteredDuos ->
+            val resultList = mutableListOf<DuoWithUsers>()
+
+            for (duo in filteredDuos) {
+                // Fetch user details for the discovery cards
+                val user1 = duoRepository.getUserById(duo.user1Id)
+                val user2 = duoRepository.getUserById(duo.user2Id)
+
+                if (user1 != null && user2 != null) {
+                    resultList.add(DuoWithUsers(duo, user1, user2))
+                }
+            }
+
+            duos = resultList
+            isLoading = false
+        }
+    }
     }
 
     fun likeDuo(targetDuoId: String) {

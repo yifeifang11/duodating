@@ -77,6 +77,46 @@ class DuoRepository(
             }
     }
 
+    // In DuoRepository.kt
+
+    /**
+     * Fetches active duos excluding those the user has already interacted with.
+     */
+    fun getDiscoveryFeed(currentUid: String): Flow<List<Duo>> = flow {
+        // 1. Find the current user's Duo document
+        val myDuoSnapshot = duosCollection
+            .whereArrayContains("userIds", currentUid)
+            .get()
+            .await()
+
+        val myDuo = myDuoSnapshot.documents.firstOrNull()?.toObject(Duo::class.java)
+        val myDuoId = myDuo?.duoId ?: ""
+
+        // 2. Build the list of IDs to hide
+        val excludedIds = mutableSetOf<String>()
+        if (myDuo != null) {
+            excludedIds.add(myDuo.duoId)
+            excludedIds.addAll(myDuo.likesSent)
+            excludedIds.addAll(myDuo.likesReceived)
+            excludedIds.addAll(myDuo.matches)
+        }
+
+        // 3. Query all active duos
+        // We fetch and then filter.
+        // Optimization: If excludedIds.size <= 10, you could use .whereNotIn(FieldPath.documentId(), list)
+        // But for a scalable app, client-side filtering after fetching is safer due to Firestore's 10-item limit.
+        emitAll(
+            duosCollection
+                .whereEqualTo("status", "ACTIVE")
+                .snapshots()
+                .map { snapshot ->
+                    snapshot.toObjects(Duo::class.java).filter { duo ->
+                        !excludedIds.contains(duo.duoId)
+                    }
+                }
+        )
+    }
+
     fun listenToIncomingInvites(phone: String): Flow<DuoInvite?> {
         Log.d("DuoRepository", "Listening for invites for phone: $phone")
         return invitesCollection
