@@ -77,6 +77,46 @@ class DuoRepository(
             }
     }
 
+    // In DuoRepository.kt
+
+    /**
+     * Fetches active duos excluding those the user has already interacted with.
+     */
+    fun getDiscoveryFeed(currentUid: String): Flow<List<Duo>> = flow {
+        // 1. Find the current user's Duo document
+        val myDuoSnapshot = duosCollection
+            .whereArrayContains("userIds", currentUid)
+            .get()
+            .await()
+
+        val myDuo = myDuoSnapshot.documents.firstOrNull()?.toObject(Duo::class.java)
+        val myDuoId = myDuo?.duoId ?: ""
+
+        // 2. Build the list of IDs to hide
+        val excludedIds = mutableSetOf<String>()
+        if (myDuo != null) {
+            excludedIds.add(myDuo.duoId)
+            excludedIds.addAll(myDuo.likesSent)
+            excludedIds.addAll(myDuo.likesReceived)
+            excludedIds.addAll(myDuo.matches)
+        }
+
+        // 3. Query all active duos
+        // We fetch and then filter.
+        // Optimization: If excludedIds.size <= 10, you could use .whereNotIn(FieldPath.documentId(), list)
+        // But for a scalable app, client-side filtering after fetching is safer due to Firestore's 10-item limit.
+        emitAll(
+            duosCollection
+                .whereEqualTo("status", "ACTIVE")
+                .snapshots()
+                .map { snapshot ->
+                    snapshot.toObjects(Duo::class.java).filter { duo ->
+                        !excludedIds.contains(duo.duoId)
+                    }
+                }
+        )
+    }
+
     fun listenToIncomingInvites(phone: String): Flow<DuoInvite?> {
         Log.d("DuoRepository", "Listening for invites for phone: $phone")
         return invitesCollection
@@ -244,6 +284,38 @@ class DuoRepository(
         Result.failure(e)
     }
 
+    suspend fun sendLikeDiscover(targetDuoId: String): Result<Unit> = try {
+        val myUid = auth.currentUser?.uid ?: throw Exception("Not authenticated")
+        val userDoc = usersCollection.document(myUid).get().await()
+        val myDuoId = userDoc.getString("linkedDuoId") ?: throw Exception("User not in a duo")
+
+        firestore.runTransaction { transaction ->
+            val targetDuoRef = duosCollection.document(targetDuoId)
+            val myDuoRef = duosCollection.document(myDuoId)
+
+            // --- STEP 1: READS (Must come first) ---
+            val targetDuoSnapshot = transaction.get(targetDuoRef)
+            val targetLikesSent = targetDuoSnapshot.get("likesSent") as? List<*>
+
+            // --- STEP 2: WRITES (Must come last) ---
+            transaction.update(myDuoRef, "likesSent", FieldValue.arrayUnion(targetDuoId))
+            transaction.update(targetDuoRef, "likesReceived", FieldValue.arrayUnion(myDuoId))
+
+            // Check for match logic
+            if (targetLikesSent?.contains(myDuoId) == true) {
+                // It's a match!
+                transaction.update(myDuoRef, "matches", FieldValue.arrayUnion(targetDuoId))
+                transaction.update(targetDuoRef, "matches", FieldValue.arrayUnion(myDuoId))
+            }
+        }.await()
+
+        Log.d("DuoRepository", "Like sent successfully from $myDuoId to $targetDuoId")
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Log.e("DuoRepository", "Like failed: ${e.message}")
+        Result.failure(e)
+    }
+
     suspend fun sendLike(targetDuoId: String): Result<Unit> = try {
         val myUid = auth.currentUser?.uid ?: throw Exception("Not authenticated")
         val userDoc = usersCollection.document(myUid).get().await()
@@ -256,10 +328,10 @@ class DuoRepository(
             val targetDuoSnapshot = transaction.get(targetDuoRef)
             val targetLikesSent = targetDuoSnapshot.get("likesSent") as? List<*>
 
-            transaction.update(myDuoRef, "likesSent", FieldValue.arrayUnion(targetDuoId))
+            transaction.update(targetDuoRef, "likesSent", FieldValue.arrayRemove(myDuoId))
 
             // ✅ Remove from their likesReceived so it disappears from your likes list
-            transaction.update(targetDuoRef, "likesReceived", FieldValue.arrayRemove(myDuoId))
+            transaction.update(myDuoRef, "likesReceived", FieldValue.arrayRemove(targetDuoId))
 
             if (targetLikesSent?.contains(myDuoId) == true) {
                 transaction.update(myDuoRef, "matches", FieldValue.arrayUnion(targetDuoId))
@@ -364,14 +436,14 @@ class DuoRepository(
             // Remove from my sent likes
             transaction.update(
                 myDuoRef,
-                "likesSent",
+                "likesReceived",
                 FieldValue.arrayRemove(targetDuoId)
             )
 
             // Remove from their received likes
             transaction.update(
                 targetDuoRef,
-                "likesReceived",
+                "likesSent",
                 FieldValue.arrayRemove(myDuoId)
             )
         }.await()
