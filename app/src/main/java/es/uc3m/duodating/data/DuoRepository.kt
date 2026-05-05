@@ -19,7 +19,6 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.launch
-import es.uc3m.duodating.data.models.DuoWithUsers
 
 class DuoRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
