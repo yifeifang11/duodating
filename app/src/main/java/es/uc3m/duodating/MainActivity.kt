@@ -1,6 +1,10 @@
 package es.uc3m.duodating
 
 import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -38,6 +42,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        createNotificationChannel()
         // 2. Check and request permissions
         checkNotificationPermission()
 
@@ -45,6 +50,28 @@ class MainActivity : ComponentActivity() {
             DuoDatingTheme(darkTheme = true) {
                 NavGraph()
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // This tells the activity to update its current intent so that
+        // the NavGraph can "see" the new deep link URI.
+        setIntent(intent)
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = "Chat Notifications"
+            val descriptionText = "Notifications for new duo messages"
+            val importance = NotificationManager.IMPORTANCE_HIGH
+            val channel = NotificationChannel("chat_notifications", name, importance).apply {
+                description = descriptionText
+            }
+            // Register the channel with the system
+            val notificationManager: NotificationManager =
+                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
         }
     }
 
