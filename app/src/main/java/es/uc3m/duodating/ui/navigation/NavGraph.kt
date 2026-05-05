@@ -22,6 +22,9 @@ import es.uc3m.duodating.ui.viewmodels.DuoViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import es.uc3m.duodating.ui.viewmodels.LikesViewModel
 import androidx.compose.runtime.remember
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 
 @Composable
 fun NavGraph(
@@ -218,11 +221,39 @@ fun NavGraph(
 
             composable(Screen.Chats.route) { 
                 ChatsScreen(
-                    onChatClick = { navController.navigate(Screen.Conversation.route) }
-                ) 
+                    onChatClick = { otherDuoId ->
+                        navController.navigate(Screen.Conversation.createRoute(otherDuoId))
+                    }
+                )
             }
-            composable(Screen.Conversation.route) {
-                ConversationScreen(onBackClick = { navController.popBackStack() })
+            composable(
+                route = Screen.Conversation.route,
+                arguments = listOf(navArgument("otherDuoId") { type = NavType.StringType }),
+                deepLinks = listOf(
+                    // This now matches exactly what your index.js is sending
+                    navDeepLink { uriPattern = "duodating://chat/{otherDuoId}" }
+                )
+            ) { backStackEntry ->
+                // 1. Get the ID string received from the notification (this will be "id1_id2")
+                val receivedId = backStackEntry.arguments?.getString("otherDuoId") ?: ""
+
+                // 2. Get your own Duo ID from your ViewModel or Repository
+                val myDuoId = duoViewModel.currentUser?.linkedDuoId ?: ""
+
+                // 3. Logic to "Unwrap" the ID:
+                // If it's a combined ID (contains '_'), find the part that ISN'T you.
+                val finalOtherDuoId = if (receivedId.contains("_")) {
+                    val parts = receivedId.split("_")
+                    if (parts[0] == myDuoId) parts[1] else parts[0]
+                } else {
+                    receivedId
+                }
+
+                ConversationScreen(
+                    otherDuoId = finalOtherDuoId, // Pass the single ID to the screen
+                    myDuoId = myDuoId,
+                    onBackClick = { navController.popBackStack() }
+                )
             }
             composable(Screen.ViewProfile.route) { 
                 ProfileTabScreen(
