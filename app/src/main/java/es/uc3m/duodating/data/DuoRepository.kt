@@ -288,10 +288,10 @@ class DuoRepository(
             val targetDuoSnapshot = transaction.get(targetDuoRef)
             val targetLikesSent = targetDuoSnapshot.get("likesSent") as? List<*>
 
-            transaction.update(myDuoRef, "likesSent", FieldValue.arrayUnion(targetDuoId))
+            transaction.update(targetDuoRef, "likesSent", FieldValue.arrayRemove(myDuoId))
 
             // ✅ Remove from their likesReceived so it disappears from your likes list
-            transaction.update(targetDuoRef, "likesReceived", FieldValue.arrayRemove(myDuoId))
+            transaction.update(myDuoRef, "likesReceived", FieldValue.arrayRemove(targetDuoId))
 
             if (targetLikesSent?.contains(myDuoId) == true) {
                 transaction.update(myDuoRef, "matches", FieldValue.arrayUnion(targetDuoId))
